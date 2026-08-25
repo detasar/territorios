@@ -15,6 +15,7 @@ import {
   isStripeSandboxConfigured,
   type StripePaymentEvent,
 } from '../src/server/stripe';
+import { ensureDatabaseGuards } from './database-guards';
 import { getRawD1 } from './index';
 import { upsertUser } from './game';
 import { ACTIVE_SEASON_ID, ensureWorld } from './world-bootstrap';
@@ -315,6 +316,7 @@ export async function processStripeEvent(
 ): Promise<{ duplicate: boolean; status: string }> {
   if (event.livemode) throw new Error('Live-mode Stripe events are disabled.');
   if (!/^[a-f0-9]{64}$/.test(payloadHash)) throw new Error('Invalid payment payload hash.');
+  await ensureDatabaseGuards();
   const d1 = getRawD1();
   const duplicate = await d1.prepare(
     'SELECT status FROM payment_events WHERE provider_event_id = ?1',

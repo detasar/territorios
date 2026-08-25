@@ -1,0 +1,20 @@
+[
+  "CREATE TRIGGER IF NOT EXISTS game_events_no_update BEFORE UPDATE ON game_events BEGIN SELECT RAISE(ABORT, 'game_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS game_events_no_delete BEFORE DELETE ON game_events BEGIN SELECT RAISE(ABORT, 'game_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS ledger_entries_no_update BEFORE UPDATE ON ledger_entries BEGIN SELECT RAISE(ABORT, 'ledger_entries is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS ledger_entries_no_delete BEFORE DELETE ON ledger_entries BEGIN SELECT RAISE(ABORT, 'ledger_entries is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS battle_ticks_no_update BEFORE UPDATE ON battle_ticks BEGIN SELECT RAISE(ABORT, 'battle_ticks is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS battle_ticks_no_delete BEFORE DELETE ON battle_ticks BEGIN SELECT RAISE(ABORT, 'battle_ticks is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS payment_events_no_update BEFORE UPDATE ON payment_events BEGIN SELECT RAISE(ABORT, 'payment_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS payment_events_no_delete BEFORE DELETE ON payment_events BEGIN SELECT RAISE(ABORT, 'payment_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS audit_events_no_update BEFORE UPDATE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS audit_events_no_delete BEFORE DELETE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS council_ballots_no_update BEFORE UPDATE ON council_ballots BEGIN SELECT RAISE(ABORT, 'council_ballots is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS council_ballots_no_delete BEFORE DELETE ON council_ballots BEGIN SELECT RAISE(ABORT, 'council_ballots is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS moderation_decisions_no_update BEFORE UPDATE ON moderation_decisions BEGIN SELECT RAISE(ABORT, 'moderation_decisions is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS moderation_decisions_no_delete BEFORE DELETE ON moderation_decisions BEGIN SELECT RAISE(ABORT, 'moderation_decisions is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS ownership_history_no_update BEFORE UPDATE ON ownership_history BEGIN SELECT RAISE(ABORT, 'ownership_history is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS ownership_history_no_delete BEFORE DELETE ON ownership_history BEGIN SELECT RAISE(ABORT, 'ownership_history is append-only'); END",
+  "CREATE TRIGGER IF NOT EXISTS battle_orders_balance_guard BEFORE INSERT ON battle_orders BEGIN SELECT CASE WHEN NEW.asset_kind NOT IN ('free_support', 'paid_support') THEN RAISE(ABORT, 'unsupported battle order asset') WHEN COALESCE((SELECT status FROM battles WHERE id = NEW.battle_id), '') <> 'active' THEN RAISE(ABORT, 'battle is not active') WHEN NOT EXISTS (SELECT 1 FROM faction_memberships AS membership JOIN battles AS battle ON battle.id = NEW.battle_id WHERE membership.user_id = NEW.user_id AND membership.season_id = battle.season_id AND membership.faction_id IN (battle.attacker_faction_id, battle.defender_faction_id)) THEN RAISE(ABORT, 'user faction is not in this battle') WHEN NEW.asset_kind = 'free_support' AND COALESCE((SELECT free_support FROM wallets WHERE user_id = NEW.user_id AND season_id = (SELECT season_id FROM battles WHERE id = NEW.battle_id)), -1) < NEW.amount THEN RAISE(ABORT, 'insufficient free support') WHEN NEW.asset_kind = 'paid_support' AND COALESCE((SELECT paid_support FROM wallets WHERE user_id = NEW.user_id AND season_id = (SELECT season_id FROM battles WHERE id = NEW.battle_id)), -1) < NEW.amount THEN RAISE(ABORT, 'insufficient paid support') END; END",
+  "CREATE TRIGGER IF NOT EXISTS battle_orders_debit_wallet AFTER INSERT ON battle_orders BEGIN UPDATE wallets SET free_support = free_support - CASE WHEN NEW.asset_kind = 'free_support' THEN NEW.amount ELSE 0 END, paid_support = paid_support - CASE WHEN NEW.asset_kind = 'paid_support' THEN NEW.amount ELSE 0 END, updated_at = NEW.created_at WHERE user_id = NEW.user_id AND season_id = (SELECT season_id FROM battles WHERE id = NEW.battle_id); END"
+]

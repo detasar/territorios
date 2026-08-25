@@ -124,7 +124,7 @@ Refund/dispute adjustments never make a wallet negative. If spent units prevent 
 
 ## 9. Persistence model
 
-The initial migration creates 26 application tables and 18 triggers. Major groups are:
+The initial migration creates 26 application tables. Before any world or payment-event access, an idempotent database-guard initializer installs and verifies 18 triggers from the single `db/database-guards.json` manifest. Keeping each trigger in one prepared statement avoids multiline-trigger parsing differences in deployment migrations. Major groups are:
 
 - identity/economy: users, memberships, wallets, ledger entries;
 - world: seasons, territories, adjacencies, factions, territory state;

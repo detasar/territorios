@@ -1,5 +1,6 @@
 import world from '../src/data/world.generated.json';
 import { canonicalEvent, ENGINE_VERSION, tickIndexAt } from '../src/domain/world/world';
+import { ensureDatabaseGuards } from './database-guards';
 import { getRawD1 } from './index';
 
 export const ACTIVE_SEASON_ID = 'season-1';
@@ -11,6 +12,7 @@ const FACTION_COLORS = ['coral', 'teal', 'gold', 'navy', 'slate'];
 type WorldSeed = typeof world;
 
 export async function ensureWorld(now = Date.now()): Promise<void> {
+  await ensureDatabaseGuards();
   const d1 = getRawD1();
   const existing = await d1
     .prepare('SELECT id FROM seasons WHERE id = ?1 LIMIT 1')

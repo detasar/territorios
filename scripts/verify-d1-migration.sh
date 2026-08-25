@@ -12,6 +12,13 @@ work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT
 database="$work_dir/territorios.sqlite"
 sqlite3 "$database" < "$migration"
+node -e '
+  const { execFileSync } = require("node:child_process");
+  const { readFileSync } = require("node:fs");
+  const [database, manifest] = process.argv.slice(1);
+  const definitions = JSON.parse(readFileSync(manifest, "utf8"));
+  for (const definition of definitions) execFileSync("sqlite3", [database, definition]);
+' "$database" "$repo_root/db/database-guards.json"
 
 tables="$(sqlite3 "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")"
 triggers="$(sqlite3 "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger';")"

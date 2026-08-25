@@ -31,6 +31,7 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Upgraded the Vite/Vinext/Cloudflare/React toolchain, removed the unused vulnerable migration CLI, and reached zero known npm audit findings in both runtime and development dependencies.
 - 2026-08-25: Passed 126 tests with 90.33% statement, 80.82% branch, 88.42% function, and 93.23% line coverage; production build; clean 26-table/18-trigger migration rehearsal; three Playwright flows; zero automated WCAG 2.2 AA violations; 390 px reflow; secret scan; security-header checks; and append-only tamper rejection.
 - 2026-08-25: Added the technical specification, security/recovery boundaries, weekly dependency updates, and GitHub CI release gates.
+- 2026-08-25: Moved 18 multiline D1 trigger definitions from the deployment migration into a single idempotent runtime guard manifest after Sites exposed its trigger-body migration parsing boundary; proved clean installation from zero triggers and append-only rejection on the real local D1 binding.
 
 ## Current task
 
