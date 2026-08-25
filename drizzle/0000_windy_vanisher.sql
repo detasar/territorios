@@ -428,6 +428,18 @@ BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
 CREATE TRIGGER `audit_events_no_delete` BEFORE DELETE ON `audit_events`
 BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
 --> statement-breakpoint
+CREATE TRIGGER `council_ballots_no_update` BEFORE UPDATE ON `council_ballots`
+BEGIN SELECT RAISE(ABORT, 'council_ballots is append-only'); END;
+--> statement-breakpoint
+CREATE TRIGGER `council_ballots_no_delete` BEFORE DELETE ON `council_ballots`
+BEGIN SELECT RAISE(ABORT, 'council_ballots is append-only'); END;
+--> statement-breakpoint
+CREATE TRIGGER `moderation_decisions_no_update` BEFORE UPDATE ON `moderation_decisions`
+BEGIN SELECT RAISE(ABORT, 'moderation_decisions is append-only'); END;
+--> statement-breakpoint
+CREATE TRIGGER `moderation_decisions_no_delete` BEFORE DELETE ON `moderation_decisions`
+BEGIN SELECT RAISE(ABORT, 'moderation_decisions is append-only'); END;
+--> statement-breakpoint
 CREATE TRIGGER `ownership_history_no_update` BEFORE UPDATE ON `ownership_history`
 BEGIN SELECT RAISE(ABORT, 'ownership_history is append-only'); END;
 --> statement-breakpoint

@@ -56,12 +56,93 @@ export const reportSchema = z.object({
 });
 
 export const notificationPreferenceSchema = z.object({
-  locale: z.enum(['es', 'en', 'ca', 'eu', 'gl']),
+  locale: z.enum(['es', 'en']),
   quietHoursStart: z.number().int().min(0).max(23),
   quietHoursEnd: z.number().int().min(0).max(23),
   maxWarAlertsPerDay: z.number().int().min(0).max(4),
   councilAlerts: z.boolean(),
 });
+
+export const announcementVoteSchema = z.object({
+  announcementId: z.string().min(8).max(80).regex(/^[a-zA-Z0-9-]+$/),
+  direction: z.enum(['up', 'down']),
+});
+
+export const safetyActionSchema = z.object({
+  targetRef: z.string().regex(/^[a-f0-9]{16}$/),
+  action: z.enum(['block', 'unblock', 'mute', 'unmute']),
+});
+
+export const roleActionSchema = z.object({
+  territoryCode: territoryCodeSchema,
+});
+
+export type CommunitySnapshot = {
+  mode: 'live-community';
+  serverTime: number;
+  territory: null | {
+    code: string;
+    name: string;
+    factionName: string;
+  };
+  council: {
+    seats: Array<{
+      seatKind: 'public-1' | 'public-2' | 'defense' | 'strategy' | 'supporter';
+      memberRef: string | null;
+      label: string | null;
+      role: string | null;
+      termEndsAt: number | null;
+    }>;
+    candidates: Array<{
+      candidateRef: string;
+      label: string;
+      role: string;
+      contributionScore: number;
+    }>;
+    validTargets: Array<{
+      code: string;
+      name: string;
+      routeKind: string;
+    }>;
+    representativeBallotCast: boolean;
+    targetBallotCast: boolean;
+    targetResult: {
+      status: 'winner' | 'tie' | 'no-quorum';
+      winner: string | null;
+      finalists: string[];
+    };
+  };
+  announcements: Array<{
+    id: string;
+    territoryCode: string;
+    territoryName: string;
+    authorRef: string;
+    authorLabel: string;
+    messageKey: string;
+    status: string;
+    upvotes: number;
+    downvotes: number;
+    viewerVote: 'up' | 'down' | null;
+    createdAt: number;
+  }>;
+  notifications: Array<{
+    id: string;
+    kind: string;
+    payload: unknown;
+    readAt: number | null;
+    createdAt: number;
+  }>;
+  viewer: null | {
+    userRef: string;
+    role: string | null;
+    roleActionAvailable: boolean;
+    nextRoleActionAt: number | null;
+    isCouncilMember: boolean;
+    canPublish: boolean;
+    blockedRefs: string[];
+    mutedRefs: string[];
+  };
+};
 
 export type WorldSnapshot = {
   mode: 'live-world';
