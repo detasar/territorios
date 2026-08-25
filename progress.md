@@ -29,13 +29,15 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Added the transparent sandbox store, checkout result polling, paid-beta terms/privacy/refund/game/community drafts, and explicit no-transfer/no-cash-out/no-random-reward boundaries.
 - 2026-08-25: Proved a signed local webhook sequence end to end: one grant, duplicate suppression, partial refund, dispute revocation, won-dispute restoration, and immutable historical battle records.
 - 2026-08-25: Upgraded the Vite/Vinext/Cloudflare/React toolchain, removed the unused vulnerable migration CLI, and reached zero known npm audit findings in both runtime and development dependencies.
-- 2026-08-25: Passed 126 tests with 90.33% statement, 80.82% branch, 88.42% function, and 93.23% line coverage; production build; clean 26-table/18-trigger migration rehearsal; three Playwright flows; zero automated WCAG 2.2 AA violations; 390 px reflow; secret scan; security-header checks; and append-only tamper rejection.
+- 2026-08-25: Passed 127 tests with 90.33% statement, 80.82% branch, 88.42% function, and 93.23% line coverage; production build; clean 26-table/18-trigger migration rehearsal; three Playwright flows; zero automated WCAG 2.2 AA violations; 390 px reflow; secret scan; security-header checks; and append-only tamper rejection.
 - 2026-08-25: Added the technical specification, security/recovery boundaries, weekly dependency updates, and GitHub CI release gates.
 - 2026-08-25: Moved 18 multiline D1 trigger definitions from the deployment migration into a single idempotent runtime guard manifest after Sites exposed its trigger-body migration parsing boundary; proved clean installation from zero triggers and append-only rejection on the real local D1 binding.
+- 2026-08-25: Published the owner-only production beta at `https://territorios.vecna.chatgpt.site`; proved anonymous 401 enforcement, authorized 200 responses, 52 live territories, one battle, three catalog products, 26 D1 tables, private/no-store API caching, required security headers, zero deployed Axe violations, and no 390 px overflow.
+- 2026-08-25: Passed the GitHub Linux release workflow end to end, including clean npm install/audit, migration rehearsal, coverage/build, local D1 initialization, Chromium installation, and all Playwright scenarios.
 
 ## Current task
 
-- Publish the verified release candidate to ChatGPT Sites, run anonymous production smoke/a11y/header checks, and create the `v0.1.0` GitHub release.
+- `v0.1.0` implementation and owner-only Sites release complete; observe the beta and keep live commerce disabled until its external gates are accepted.
 
 ## Planned MVPs
 
@@ -43,10 +45,10 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 2. [complete] Durable D1 economy ledger, hourly ticks, conquest, replay, seasons, and leaderboards.
 3. [complete] Council elections, roles, moderation, notifications, localization, and accessibility.
 4. [complete] Stripe sandbox purchases, paid-effect cap, entitlements, refunds, and chargeback handling.
-5. [in progress] Full verification, GitHub release, and ChatGPT Sites deployment.
+5. [complete] Full verification, GitHub release, and ChatGPT Sites deployment.
 
-## TODO
+## Post-beta gates (not part of `v0.1.0`)
 
-- Commit and push release engineering artifacts.
-- Publish through ChatGPT Sites and verify the deployed URL without relying on local state.
-- Tag and publish `v0.1.0` with the exact acceptance evidence and honest sandbox claim ceiling.
+- Add operator-owned Stripe test secrets to Sites only when a hosted Checkout demonstration is required; the published build currently fails closed while free play remains available.
+- Keep live keys and live-mode events disabled until Spanish/EU legal, tax/VAT, fraud, support, moderation, manual accessibility, and capacity gates have named owners and evidence.
+- Change owner-only access only through an explicit Sites sharing decision.
