@@ -279,20 +279,34 @@ CREATE TABLE `purchases` (
 	`product_id` text NOT NULL,
 	`provider` text DEFAULT 'stripe' NOT NULL,
 	`provider_session_id` text,
+	`provider_payment_intent_id` text,
 	`amount_cents` integer NOT NULL,
 	`currency` text NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
+	`payment_version` integer DEFAULT 0 NOT NULL,
+	`paid_support_granted` integer DEFAULT 0 NOT NULL,
+	`paid_support_revoked` integer DEFAULT 0 NOT NULL,
+	`refunded_cents` integer DEFAULT 0 NOT NULL,
+	`disputed_cents` integer DEFAULT 0 NOT NULL,
+	`consent_version` text NOT NULL,
+	`age_confirmed_at` integer NOT NULL,
 	`idempotency_key` text NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`product_id`) REFERENCES `catalog_products`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`product_id`) REFERENCES `catalog_products`(`id`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "purchases_amount_positive" CHECK("purchases"."amount_cents" > 0),
+	CONSTRAINT "purchases_grant_nonnegative" CHECK("purchases"."paid_support_granted" >= 0),
+	CONSTRAINT "purchases_revocation_range" CHECK("purchases"."paid_support_revoked" >= 0 AND "purchases"."paid_support_revoked" <= "purchases"."paid_support_granted"),
+	CONSTRAINT "purchases_refund_range" CHECK("purchases"."refunded_cents" >= 0 AND "purchases"."refunded_cents" <= "purchases"."amount_cents"),
+	CONSTRAINT "purchases_dispute_range" CHECK("purchases"."disputed_cents" >= 0 AND "purchases"."disputed_cents" <= "purchases"."amount_cents")
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `purchases_idempotency_unique` ON `purchases` (`user_id`,`idempotency_key`);--> statement-breakpoint
 CREATE UNIQUE INDEX `purchases_provider_session_unique` ON `purchases` (`provider_session_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `purchases_provider_payment_intent_unique` ON `purchases` (`provider_payment_intent_id`);--> statement-breakpoint
 CREATE INDEX `purchases_spend_idx` ON `purchases` (`user_id`,`created_at`,`status`);--> statement-breakpoint
 CREATE TABLE `reports` (
 	`id` text PRIMARY KEY NOT NULL,

@@ -318,16 +318,39 @@ export const purchases = sqliteTable('purchases', {
   productId: text('product_id').notNull().references(() => catalogProducts.id),
   provider: text('provider').notNull().default('stripe'),
   providerSessionId: text('provider_session_id'),
+  providerPaymentIntentId: text('provider_payment_intent_id'),
   amountCents: integer('amount_cents').notNull(),
   currency: text('currency').notNull(),
   status: text('status').notNull().default('pending'),
+  paymentVersion: integer('payment_version').notNull().default(0),
+  paidSupportGranted: integer('paid_support_granted').notNull().default(0),
+  paidSupportRevoked: integer('paid_support_revoked').notNull().default(0),
+  refundedCents: integer('refunded_cents').notNull().default(0),
+  disputedCents: integer('disputed_cents').notNull().default(0),
+  consentVersion: text('consent_version').notNull(),
+  ageConfirmedAt: integer('age_confirmed_at').notNull(),
   idempotencyKey: text('idempotency_key').notNull(),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 }, (table) => [
   uniqueIndex('purchases_idempotency_unique').on(table.userId, table.idempotencyKey),
   uniqueIndex('purchases_provider_session_unique').on(table.providerSessionId),
+  uniqueIndex('purchases_provider_payment_intent_unique').on(table.providerPaymentIntentId),
   index('purchases_spend_idx').on(table.userId, table.createdAt, table.status),
+  check('purchases_amount_positive', sql`${table.amountCents} > 0`),
+  check('purchases_grant_nonnegative', sql`${table.paidSupportGranted} >= 0`),
+  check(
+    'purchases_revocation_range',
+    sql`${table.paidSupportRevoked} >= 0 AND ${table.paidSupportRevoked} <= ${table.paidSupportGranted}`,
+  ),
+  check(
+    'purchases_refund_range',
+    sql`${table.refundedCents} >= 0 AND ${table.refundedCents} <= ${table.amountCents}`,
+  ),
+  check(
+    'purchases_dispute_range',
+    sql`${table.disputedCents} >= 0 AND ${table.disputedCents} <= ${table.amountCents}`,
+  ),
 ]);
 
 export const paymentEvents = sqliteTable('payment_events', {
