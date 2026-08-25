@@ -24,21 +24,28 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Replaced placeholder activity with live leaderboards, hash-addressed replay, fixed-vocabulary announcements, weighted content feedback, human-review reports, personal-data redaction, and private mute/block actions.
 - 2026-08-25: Added Spanish/English user-selected localization, bounded in-game notifications, quiet hours, daily alert limits, accessible tabs, keyboard navigation, and responsive 390px layouts.
 - 2026-08-25: Passed 71 unit/component/API tests, 88.38% statement and 80.45% branch coverage, zero automated WCAG 2.2 AA violations, mobile reflow, production build, and a clean D1 rehearsal with 18 append-only/authorization triggers.
+- 2026-08-25: Shipped Stripe test-mode Checkout Sessions with server-priced products, 18+/versioned consent, resumable idempotent checkout, raw-body SDK signature verification, live-mode rejection, and webhook-only fulfillment.
+- 2026-08-25: Added append-only payment events, entitlements, compensating ledger/audit records, proportional refunds, dispute freezes/restoration, non-negative wallet handling, personal purchase pause, decreasing spend limits, and new-account caps.
+- 2026-08-25: Added the transparent sandbox store, checkout result polling, paid-beta terms/privacy/refund/game/community drafts, and explicit no-transfer/no-cash-out/no-random-reward boundaries.
+- 2026-08-25: Proved a signed local webhook sequence end to end: one grant, duplicate suppression, partial refund, dispute revocation, won-dispute restoration, and immutable historical battle records.
+- 2026-08-25: Upgraded the Vite/Vinext/Cloudflare/React toolchain, removed the unused vulnerable migration CLI, and reached zero known npm audit findings in both runtime and development dependencies.
+- 2026-08-25: Passed 126 tests with 90.33% statement, 80.82% branch, 88.42% function, and 93.23% line coverage; production build; clean 26-table/18-trigger migration rehearsal; three Playwright flows; zero automated WCAG 2.2 AA violations; 390 px reflow; secret scan; security-header checks; and append-only tamper rejection.
+- 2026-08-25: Added the technical specification, security/recovery boundaries, weekly dependency updates, and GitHub CI release gates.
 
 ## Current task
 
-- Build Stripe sandbox checkout, signed/idempotent webhooks, paid-effect caps, entitlements, refunds, disputes, and spending controls.
+- Publish the verified release candidate to ChatGPT Sites, run anonymous production smoke/a11y/header checks, and create the `v0.1.0` GitHub release.
 
 ## Planned MVPs
 
-1. Recognizable map-first vertical slice with province selection, free support, and one deterministic siege.
-2. Durable D1 economy ledger, hourly ticks, conquest, replay, seasons, and leaderboards.
-3. Council elections, roles, moderation, notifications, localization, and accessibility.
-4. Stripe sandbox purchases, paid-effect cap, entitlements, refunds, and chargeback handling.
-5. Full verification, GitHub release, and ChatGPT Sites deployment.
+1. [complete] Recognizable map-first vertical slice with province selection, free support, and one deterministic siege.
+2. [complete] Durable D1 economy ledger, hourly ticks, conquest, replay, seasons, and leaderboards.
+3. [complete] Council elections, roles, moderation, notifications, localization, and accessibility.
+4. [complete] Stripe sandbox purchases, paid-effect cap, entitlements, refunds, and chargeback handling.
+5. [in progress] Full verification, GitHub release, and ChatGPT Sites deployment.
 
 ## TODO
 
-- Integrate Stripe test-mode Checkout Sessions without storing card data.
-- Fulfill and revoke entitlements only from verified webhook events.
-- Enforce personal spend limits, purchase pause, 18+ paid-beta confirmation, refunds, and dispute freezes.
+- Commit and push release engineering artifacts.
+- Publish through ChatGPT Sites and verify the deployed URL without relying on local state.
+- Tag and publish `v0.1.0` with the exact acceptance evidence and honest sandbox claim ceiling.
