@@ -93,6 +93,10 @@ const baseUrl = process.argv[2];
     if (world.territories?.length !== 52 || world.battles?.length !== 8) {
       throw new Error('Concurrent bootstrap did not return the complete opening world.');
     }
+    const ownerColors = new Set(world.territories.map((territory) => territory.color));
+    if (ownerColors.size !== 52 || [...ownerColors].some((color) => !/^hsl\(\d+ \d+% \d+%\)$/.test(color))) {
+      throw new Error('Fresh world did not receive 52 deterministic owner visual tokens.');
+    }
   }
 })().catch((error) => {
   console.error(error);

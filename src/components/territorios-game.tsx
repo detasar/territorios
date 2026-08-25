@@ -7,12 +7,20 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
 import type { CommunitySnapshot, WorldSnapshot } from '../contracts/game';
 import { resolveBattleTick } from '../domain/combat/combat';
+import {
+  deriveSupportImpact,
+  groupFronts,
+  viewerHomeSupply,
+  type SupportImpact,
+} from '../domain/presentation/game-view';
+import { provinceVisualState } from '../domain/presentation/owner-visual';
 import {
   eventSummary,
   interpolate,
@@ -123,16 +131,6 @@ function SurfaceDialog({
   );
 }
 
-const factionByCode = (code: string) => {
-  if (code === '28') return 'coral';
-  if (code === '45') return 'contested';
-  const value = Number(code);
-  if (value % 5 === 0) return 'gold';
-  if (value % 3 === 0) return 'coral';
-  if (value % 2 === 0) return 'teal';
-  return 'neutral';
-};
-
 function formatNumber(value: number) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
@@ -190,6 +188,7 @@ export function TerritoriosGame({
   const [communityError, setCommunityError] = useState(false);
   const [locale, setLocale] = useState<AppLocale>('es');
   const [commandMessage, setCommandMessage] = useState('');
+  const [supportImpact, setSupportImpact] = useState<SupportImpact | null>(null);
   const [commandPending, setCommandPending] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState(
     initialTerritoryCode?.match(/^\d{2}$/) ? initialTerritoryCode : '45',
@@ -214,6 +213,7 @@ export function TerritoriosGame({
   const copy = uiCopy[locale];
   const changeLocale = useCallback((nextLocale: AppLocale) => {
     setCommandMessage('');
+    setSupportImpact(null);
     setLocale(nextLocale);
   }, []);
 
@@ -432,6 +432,7 @@ export function TerritoriosGame({
         feature,
         inset,
         path: path(feature as never) ?? '',
+        centroid: path.centroid(feature as never) as Position,
       }));
     };
     return [
@@ -449,6 +450,17 @@ export function TerritoriosGame({
   );
   const selectedName = selectedProvince?.properties.name ?? selectedState?.name ?? selectedTerritory;
   const activeBattle = world?.battles.find((battle) => battle.id === selectedBattleId) ?? null;
+  const frontGroups = world ? groupFronts(world.battles) : { mine: [], others: [] };
+  const homeSupply = world ? viewerHomeSupply(world) : null;
+  const activeOriginMarker = activeBattle
+    ? mapPaths.find(({ feature }) => feature.properties.code === activeBattle.originTerritoryCode)?.centroid
+    : undefined;
+  const activeTargetMarker = activeBattle
+    ? mapPaths.find(({ feature }) => feature.properties.code === activeBattle.targetTerritoryCode)?.centroid
+    : undefined;
+  const hasOtherFactions = Boolean(world?.territories.some(
+    (territory) => territory.ownerFactionId !== world.viewer?.membership?.factionId,
+  ));
   const countdown = nextTickAt - simulatedNow;
   const selectedBattle = world?.battles.find(
     (battle) => battle.targetTerritoryCode === selectedTerritory,
@@ -491,13 +503,13 @@ export function TerritoriosGame({
 
   const selectTerritory = (code: string) => {
     setCommandMessage('');
+    setSupportImpact(null);
     setSelectedTerritory(code);
-    const battle = world?.battles.find((entry) => entry.targetTerritoryCode === code);
-    if (battle) setSelectedBattleId(battle.id);
   };
 
   const selectBattle = (battleId: string) => {
     setCommandMessage('');
+    setSupportImpact(null);
     setSelectedBattleId(battleId);
     const battle = world?.battles.find((entry) => entry.id === battleId);
     if (battle) setSelectedTerritory(battle.targetTerritoryCode);
@@ -579,8 +591,10 @@ export function TerritoriosGame({
       if (!response.ok || 'error' in result) {
         throw new Error('error' in result && locale === 'es' ? result.error : copy.orderRejected);
       }
+      const impact = deriveSupportImpact(world, result, activeBattle.id);
       applyWorld(result);
-      setCommandMessage(copy.supportSuccess);
+      setSupportImpact(impact);
+      setCommandMessage(impact ? '' : copy.supportSuccess);
     } catch (error) {
       setCommandMessage(error instanceof Error ? error.message : copy.orderFailed);
     } finally {
@@ -633,8 +647,8 @@ export function TerritoriosGame({
           {world?.release ? <small>v{world.release.version} · {world.release.shortSha}</small> : null}
         </div>
 
-        <div className="resource-strip" aria-label={copy.factionResourcesAria}>
-          <div className="resource-item"><ResourceIcon kind="grain" /><span><strong>{formatNumber(selectedState?.supply ?? 0)}</strong><small>{copy.supplies}</small></span></div>
+        <div className="resource-strip" aria-label={interpolate(copy.factionResourcesAria, { name: homeSupply?.name ?? '—' })}>
+          <div className="resource-item"><ResourceIcon kind="grain" /><span><strong>{formatNumber(homeSupply?.supply ?? 0)}</strong><small>{interpolate(copy.homeSupply, { name: homeSupply?.name ?? '—' })}</small></span></div>
           <div className="resource-item"><ResourceIcon kind="shield" /><span><strong>{formatNumber(supportAvailable)}</strong><small>{copy.reinforcements}</small></span></div>
           <div className="resource-item resource-coins"><ResourceIcon kind="coin" /><span><strong>{formatNumber(world?.viewer?.wallet?.paidSupport ?? 0)}</strong><small>{copy.paidSupport}</small></span></div>
           <button ref={profileTriggerRef} className="avatar" aria-label={copy.openProfile} onClick={() => setProfileOpen(true)}>{world?.viewer?.displayName.slice(0, 2).toUpperCase() ?? 'TC'}</button>
@@ -685,11 +699,24 @@ export function TerritoriosGame({
             <div className="front-selector">
               <label htmlFor="active-front">{copy.activeFront}</label>
               <select id="active-front" value={selectedBattleId} onChange={(event) => selectBattle(event.target.value)}>
-                {world.battles.map((battle) => (
-                  <option key={battle.id} value={battle.id}>
-                    {interpolate(copy.observeFront, { origin: battle.originName, target: battle.targetName })}
-                  </option>
-                ))}
+                {frontGroups.mine.length ? (
+                  <optgroup label={copy.myFronts}>
+                    {frontGroups.mine.map((battle) => (
+                      <option key={battle.id} value={battle.id}>
+                        {battle.viewerSide === 'attacker' ? copy.attackerBadge : copy.defenderBadge} · {battle.originName} → {battle.targetName}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {frontGroups.others.length ? (
+                  <optgroup label={copy.otherFronts}>
+                    {frontGroups.others.map((battle) => (
+                      <option key={battle.id} value={battle.id}>
+                        {copy.observerBadge} · {battle.originName} → {battle.targetName}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
               <span>{activeBattle?.viewerSide === 'attacker' ? copy.yourSideAttacker : activeBattle?.viewerSide === 'defender' ? copy.yourSideDefender : copy.observingFront}</span>
             </div>
@@ -706,6 +733,7 @@ export function TerritoriosGame({
                 <defs>
                   <filter id="selected-glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#ffb45d" floodOpacity="0.9" /></filter>
                   <pattern id="siege-lines" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#df5b50" /><line x1="0" y1="0" x2="0" y2="8" stroke="#f8c38a" strokeWidth="2" opacity=".55" /></pattern>
+                  <marker id="front-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
                 </defs>
                 <g className="province-layer">
                   {mapPaths.some(({ inset }) => inset === 'canary') ? <rect className="map-inset-frame" x="25" y="430" width="234" height="94" rx="12" /> : null}
@@ -714,7 +742,16 @@ export function TerritoriosGame({
                     const code = feature.properties.code;
                     const isSelected = code === selectedTerritory;
                     const territory = world?.territories.find((entry) => entry.code === code);
-                    const isViewerTerritory = territory?.ownerFactionId === world?.viewer?.membership?.factionId;
+                    const visualState = provinceVisualState({
+                      territoryCode: code,
+                      ownerFactionId: territory?.ownerFactionId,
+                      viewerFactionId: world?.viewer?.membership?.factionId,
+                      selectedTerritoryCode: selectedTerritory,
+                      activeOriginCode: activeBattle?.originTerritoryCode,
+                      activeTargetCode: activeBattle?.targetTerritoryCode,
+                      siegeBp: territory?.siegeBp,
+                    });
+                    const isViewerTerritory = visualState.viewerOwned;
                     const territoryStatus = territory?.siegeBp
                       ? copy.siegeActive
                       : isViewerTerritory
@@ -737,12 +774,12 @@ export function TerritoriosGame({
                           defense: formatNumber((territory?.freeGarrison ?? 0) + (territory?.paidGarrison ?? 0)),
                         })}
                         aria-pressed={isSelected}
-                        data-faction={
-                          world?.territories.find((territory) => territory.code === code)?.siegeBp
-                            ? 'contested'
-                            : world?.territories.find((territory) => territory.code === code)?.color ?? factionByCode(code)
-                        }
-                        data-selected={isSelected ? 'true' : undefined}
+                        style={{ '--owner-color': territory?.color ?? '#849199' } as CSSProperties}
+                        data-viewer-owned={visualState.viewerOwned ? 'true' : undefined}
+                        data-front-origin={visualState.frontOrigin ? 'true' : undefined}
+                        data-front-target={visualState.frontTarget ? 'true' : undefined}
+                        data-contested={visualState.contested ? 'true' : undefined}
+                        data-selected={visualState.selected ? 'true' : undefined}
                         data-inset={inset ?? undefined}
                         onClick={() => selectTerritory(code)}
                         onKeyDown={(event) => {
@@ -755,15 +792,33 @@ export function TerritoriosGame({
                             moveProvinceFocus(code, event.key);
                           }
                         }}
-                      ><title>{feature.properties.name}</title></path>
+                      ><title>{feature.properties.name} · {territory?.ownerFactionName ?? copy.neutralProvince} · {territoryStatus}</title></path>
                     );
                   })}
                 </g>
+                {activeOriginMarker && activeTargetMarker ? (
+                  <g className="active-front-overlay" aria-hidden="true">
+                    <line
+                      className="active-front-route"
+                      x1={activeOriginMarker[0]}
+                      y1={activeOriginMarker[1]}
+                      x2={activeTargetMarker[0]}
+                      y2={activeTargetMarker[1]}
+                      markerEnd="url(#front-arrow)"
+                    />
+                    <g className="front-marker front-marker-origin" transform={`translate(${activeOriginMarker[0]} ${activeOriginMarker[1]})`}><circle r="9" /><text y="3">O</text></g>
+                    <g className="front-marker front-marker-target" transform={`translate(${activeTargetMarker[0]} ${activeTargetMarker[1]})`}><circle r="9" /><text y="3">X</text></g>
+                  </g>
+                ) : null}
               </svg>
             )}
 
             <div className="map-legend" aria-label={copy.mapLegend}>
-              <span><i className="legend-coral" />{copy.yourFaction}</span><span><i className="legend-teal" />{copy.seaHouse}</span><span><i className="legend-gold" />{copy.goldenLeague}</span><span><i className="legend-siege" />{copy.contested}</span>
+              {world?.viewer?.membership ? <span><i className="legend-own" />{copy.yourFaction}</span> : null}
+              {hasOtherFactions ? <span><i className="legend-others" />{copy.otherFactions}</span> : null}
+              {activeBattle ? <span><i className="legend-origin" />{copy.frontOrigin}</span> : null}
+              {activeBattle ? <span><i className="legend-target" />{copy.frontTarget}</span> : null}
+              <span><i className="legend-selected" />{copy.selectedProvince}</span>
             </div>
           </div>
           <p className="map-attribution">{copy.mapAttribution}</p>
@@ -783,7 +838,15 @@ export function TerritoriosGame({
                 <a href={`/province/${selectedTerritory}`}>{interpolate(copy.openProvincePage, { name: selectedName })}</a>
               </div>
             ) : null}
-            <div className="province-title-row"><span className={`large-crest ${isBattleTarget ? 'crest-siege' : 'crest-coral'}`}>{selectedName.slice(0, 1)}</span><div><span className="eyebrow">{copy.province} {selectedTerritory}</span><h2>{selectedName}</h2></div></div>
+            <div className="province-title-row"><span
+              className={`large-crest ${isBattleTarget ? 'crest-siege' : ''}`}
+              role="img"
+              aria-label={interpolate(copy.crestLabel, {
+                owner: selectedState?.ownerFactionName ?? copy.neutralProvince,
+                status: isBattleTarget ? copy.siegeActive : isOwnedByViewer ? copy.underControl : copy.stable,
+              })}
+              style={{ '--crest-color': selectedState?.color ?? '#849199' } as CSSProperties}
+            >{selectedName.slice(0, 1)}</span><div><span className="eyebrow">{copy.province} {selectedTerritory}</span><h2>{selectedName}</h2></div></div>
             {!isBattleTarget ? (
               <div className="owned-summary"><strong>{isOwnedByViewer ? copy.factionCapital : selectedState?.ownerFactionName ?? copy.neutralProvince}</strong><p>{copy.fortified}</p><dl><div><dt>{copy.defense}</dt><dd>{formatNumber((selectedState?.freeGarrison ?? 8_400) + (selectedState?.paidGarrison ?? 0))}</dd></div><div><dt>{copy.supplyIndex}</dt><dd>{selectedState?.supply ?? 1_000}</dd></div></dl></div>
             ) : (
@@ -823,7 +886,22 @@ export function TerritoriosGame({
             ) : activeBattle?.canSupport ? (
               <button className="primary-action" type="button" disabled={supportAvailable < 50 || commandPending} onClick={sendSupport} aria-label={interpolate(copy.sendFiftyTo, { origin: activeBattle.originName, target: activeBattle.targetName })}><span>{commandPending ? copy.registering : copy.sendFifty}</span><span className="action-cost"><ResourceIcon kind="shield" />50</span></button>
             ) : <p className="support-unavailable">{activeBattle?.supportDisabledReason === 'not-party' ? copy.supportNotParty : copy.supportWait}</p>}
-            {commandMessage ? <p className="command-message" role="status">{commandMessage}</p> : null}
+            {supportImpact && supportImpact.battleId === activeBattle?.id ? (
+              <div className="support-impact" role="status">
+                <strong>{interpolate(copy.supportImpactHeading, {
+                  amount: supportImpact.amount,
+                  side: supportImpact.side === 'attacker' ? copy.attackerSide : copy.defenderSide,
+                })}</strong>
+                <span>{supportImpact.route}</span>
+                <span>{interpolate(copy.supportImpactPower, {
+                  before: formatNumber(supportImpact.beforePower),
+                  after: formatNumber(supportImpact.afterPower),
+                })}</span>
+                <small>{interpolate(copy.supportImpactQueued, {
+                  time: formatCountdown(supportImpact.nextTickAt - simulatedNow),
+                })}</small>
+              </div>
+            ) : commandMessage ? <p className="command-message" role="status">{commandMessage}</p> : null}
             <div className="fair-play-note"><ResourceIcon kind="shield" /><span><strong>{copy.fairPlay}</strong>{copy.paidCap}</span></div>
           </section>
 

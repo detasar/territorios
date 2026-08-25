@@ -1,5 +1,6 @@
 import world from '../src/data/world.generated.json';
 import { canonicalEvent, ENGINE_VERSION, tickIndexAt } from '../src/domain/world/world';
+import { ownerColorForTerritory } from '../src/domain/presentation/owner-visual';
 import { ensureDatabaseGuards } from './database-guards';
 import { getRawD1 } from './index';
 
@@ -7,7 +8,6 @@ const DAY_MILLISECONDS = 24 * 60 * 60 * 1_000;
 const COUNCIL_TERM_MILLISECONDS = 7 * DAY_MILLISECONDS;
 const TARGET_BALLOT_MILLISECONDS = 6 * 60 * 60 * 1_000;
 const INITIAL_FRONT_COUNT = 8;
-const FACTION_COLORS = ['coral', 'teal', 'gold', 'navy', 'slate'];
 
 type WorldSeed = typeof world;
 
@@ -167,12 +167,12 @@ async function createSeason(number: number, startsAt: number, createdAt: number)
       d1,
       'factions',
       ['id', 'season_id', 'name', 'home_territory_code', 'color', 'score', 'created_at'],
-      territories.map((territory, index) => [
+      territories.map((territory) => [
         factionId(seasonId, territory.code),
         seasonId,
         `Casa de ${territory.name}`,
         territory.code,
-        FACTION_COLORS[index % FACTION_COLORS.length],
+        ownerColorForTerritory(territory.code),
         0,
         createdAt,
       ]),

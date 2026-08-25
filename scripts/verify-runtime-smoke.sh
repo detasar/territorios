@@ -90,6 +90,9 @@ if (game.release?.realMoney !== false || game.release?.channel !== 'closed-beta'
   fail('closed-beta money boundary');
 }
 if (game.territories?.length !== 52) fail('territory count');
+if (new Set(game.territories.map((territory) => territory.color)).size !== 52) {
+  fail('owner visual token uniqueness');
+}
 if (game.battles?.length !== 8) fail('opening front count');
 if (new Set(game.battles.map((battle) => battle.targetTerritoryCode)).size !== 8) {
   fail('opening targets are not unique');
