@@ -9,7 +9,7 @@
     "dev": "bash scripts/run-local-dev.sh",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .wrangler",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
