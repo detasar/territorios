@@ -1,0 +1,962 @@
+{
+  "territories": [
+    {
+      "code": "01",
+      "name": "Araba/Álava",
+      "nationalCode": "34160100000"
+    },
+    {
+      "code": "02",
+      "name": "Albacete",
+      "nationalCode": "34080200000"
+    },
+    {
+      "code": "03",
+      "name": "Alacant/Alicante",
+      "nationalCode": "34100300000"
+    },
+    {
+      "code": "04",
+      "name": "Almería",
+      "nationalCode": "34010400000"
+    },
+    {
+      "code": "05",
+      "name": "Ávila",
+      "nationalCode": "34070500000"
+    },
+    {
+      "code": "06",
+      "name": "Badajoz",
+      "nationalCode": "34110600000"
+    },
+    {
+      "code": "07",
+      "name": "Illes Balears",
+      "nationalCode": "34040700000"
+    },
+    {
+      "code": "08",
+      "name": "Barcelona",
+      "nationalCode": "34090800000"
+    },
+    {
+      "code": "09",
+      "name": "Burgos",
+      "nationalCode": "34070900000"
+    },
+    {
+      "code": "10",
+      "name": "Cáceres",
+      "nationalCode": "34111000000"
+    },
+    {
+      "code": "11",
+      "name": "Cádiz",
+      "nationalCode": "34011100000"
+    },
+    {
+      "code": "12",
+      "name": "Castelló/Castellón",
+      "nationalCode": "34101200000"
+    },
+    {
+      "code": "13",
+      "name": "Ciudad Real",
+      "nationalCode": "34081300000"
+    },
+    {
+      "code": "14",
+      "name": "Córdoba",
+      "nationalCode": "34011400000"
+    },
+    {
+      "code": "15",
+      "name": "A Coruña",
+      "nationalCode": "34121500000"
+    },
+    {
+      "code": "16",
+      "name": "Cuenca",
+      "nationalCode": "34081600000"
+    },
+    {
+      "code": "17",
+      "name": "Girona",
+      "nationalCode": "34091700000"
+    },
+    {
+      "code": "18",
+      "name": "Granada",
+      "nationalCode": "34011800000"
+    },
+    {
+      "code": "19",
+      "name": "Guadalajara",
+      "nationalCode": "34081900000"
+    },
+    {
+      "code": "20",
+      "name": "Gipuzkoa",
+      "nationalCode": "34162000000"
+    },
+    {
+      "code": "21",
+      "name": "Huelva",
+      "nationalCode": "34012100000"
+    },
+    {
+      "code": "22",
+      "name": "Huesca",
+      "nationalCode": "34022200000"
+    },
+    {
+      "code": "23",
+      "name": "Jaén",
+      "nationalCode": "34012300000"
+    },
+    {
+      "code": "24",
+      "name": "León",
+      "nationalCode": "34072400000"
+    },
+    {
+      "code": "25",
+      "name": "Lleida",
+      "nationalCode": "34092500000"
+    },
+    {
+      "code": "26",
+      "name": "La Rioja",
+      "nationalCode": "34172600000"
+    },
+    {
+      "code": "27",
+      "name": "Lugo",
+      "nationalCode": "34122700000"
+    },
+    {
+      "code": "28",
+      "name": "Madrid",
+      "nationalCode": "34132800000"
+    },
+    {
+      "code": "29",
+      "name": "Málaga",
+      "nationalCode": "34012900000"
+    },
+    {
+      "code": "30",
+      "name": "Murcia",
+      "nationalCode": "34143000000"
+    },
+    {
+      "code": "31",
+      "name": "Navarra",
+      "nationalCode": "34153100000"
+    },
+    {
+      "code": "32",
+      "name": "Ourense",
+      "nationalCode": "34123200000"
+    },
+    {
+      "code": "33",
+      "name": "Asturias",
+      "nationalCode": "34033300000"
+    },
+    {
+      "code": "34",
+      "name": "Palencia",
+      "nationalCode": "34073400000"
+    },
+    {
+      "code": "35",
+      "name": "Las Palmas",
+      "nationalCode": "34053500000"
+    },
+    {
+      "code": "36",
+      "name": "Pontevedra",
+      "nationalCode": "34123600000"
+    },
+    {
+      "code": "37",
+      "name": "Salamanca",
+      "nationalCode": "34073700000"
+    },
+    {
+      "code": "38",
+      "name": "Santa Cruz de Tenerife",
+      "nationalCode": "34053800000"
+    },
+    {
+      "code": "39",
+      "name": "Cantabria",
+      "nationalCode": "34063900000"
+    },
+    {
+      "code": "40",
+      "name": "Segovia",
+      "nationalCode": "34074000000"
+    },
+    {
+      "code": "41",
+      "name": "Sevilla",
+      "nationalCode": "34014100000"
+    },
+    {
+      "code": "42",
+      "name": "Soria",
+      "nationalCode": "34074200000"
+    },
+    {
+      "code": "43",
+      "name": "Tarragona",
+      "nationalCode": "34094300000"
+    },
+    {
+      "code": "44",
+      "name": "Teruel",
+      "nationalCode": "34024400000"
+    },
+    {
+      "code": "45",
+      "name": "Toledo",
+      "nationalCode": "34084500000"
+    },
+    {
+      "code": "46",
+      "name": "València/Valencia",
+      "nationalCode": "34104600000"
+    },
+    {
+      "code": "47",
+      "name": "Valladolid",
+      "nationalCode": "34074700000"
+    },
+    {
+      "code": "48",
+      "name": "Bizkaia",
+      "nationalCode": "34164800000"
+    },
+    {
+      "code": "49",
+      "name": "Zamora",
+      "nationalCode": "34074900000"
+    },
+    {
+      "code": "50",
+      "name": "Zaragoza",
+      "nationalCode": "34025000000"
+    },
+    {
+      "code": "51",
+      "name": "Ceuta",
+      "nationalCode": "34185100000"
+    },
+    {
+      "code": "52",
+      "name": "Melilla",
+      "nationalCode": "34195200000"
+    }
+  ],
+  "adjacencies": [
+    {
+      "from": "01",
+      "to": "09",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "01",
+      "to": "20",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "01",
+      "to": "26",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "01",
+      "to": "31",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "01",
+      "to": "48",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "03",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "13",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "16",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "23",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "30",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "02",
+      "to": "46",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "03",
+      "to": "07",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "03",
+      "to": "30",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "03",
+      "to": "46",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "04",
+      "to": "18",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "04",
+      "to": "30",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "04",
+      "to": "52",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "05",
+      "to": "10",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "05",
+      "to": "28",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "05",
+      "to": "37",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "05",
+      "to": "40",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "05",
+      "to": "45",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "05",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "06",
+      "to": "10",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "06",
+      "to": "13",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "06",
+      "to": "14",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "06",
+      "to": "21",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "06",
+      "to": "41",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "07",
+      "to": "08",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "07",
+      "to": "46",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "08",
+      "to": "17",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "08",
+      "to": "25",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "08",
+      "to": "43",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "26",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "34",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "39",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "40",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "42",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "09",
+      "to": "48",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "10",
+      "to": "37",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "10",
+      "to": "45",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "11",
+      "to": "29",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "11",
+      "to": "35",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "11",
+      "to": "41",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "11",
+      "to": "51",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "12",
+      "to": "43",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "12",
+      "to": "44",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "12",
+      "to": "46",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "13",
+      "to": "14",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "13",
+      "to": "16",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "13",
+      "to": "23",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "13",
+      "to": "45",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "14",
+      "to": "18",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "14",
+      "to": "23",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "14",
+      "to": "29",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "14",
+      "to": "41",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "15",
+      "to": "27",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "15",
+      "to": "36",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "16",
+      "to": "19",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "16",
+      "to": "44",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "16",
+      "to": "45",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "16",
+      "to": "46",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "17",
+      "to": "25",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "18",
+      "to": "23",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "18",
+      "to": "29",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "18",
+      "to": "30",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "19",
+      "to": "28",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "19",
+      "to": "40",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "19",
+      "to": "42",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "19",
+      "to": "44",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "19",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "20",
+      "to": "31",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "20",
+      "to": "48",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "21",
+      "to": "41",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "22",
+      "to": "25",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "22",
+      "to": "31",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "22",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "27",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "32",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "33",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "34",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "39",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "24",
+      "to": "49",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "25",
+      "to": "43",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "25",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "26",
+      "to": "31",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "26",
+      "to": "42",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "26",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "27",
+      "to": "32",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "27",
+      "to": "33",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "27",
+      "to": "36",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "28",
+      "to": "40",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "28",
+      "to": "45",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "29",
+      "to": "41",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "29",
+      "to": "51",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "29",
+      "to": "52",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "31",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "32",
+      "to": "36",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "32",
+      "to": "49",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "33",
+      "to": "39",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "34",
+      "to": "39",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "34",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "35",
+      "to": "38",
+      "routeKind": "sea",
+      "costBp": 12500
+    },
+    {
+      "from": "37",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "37",
+      "to": "49",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "39",
+      "to": "48",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "40",
+      "to": "42",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "40",
+      "to": "47",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "42",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "43",
+      "to": "44",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "43",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "44",
+      "to": "46",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "44",
+      "to": "50",
+      "routeKind": "land",
+      "costBp": 10000
+    },
+    {
+      "from": "47",
+      "to": "49",
+      "routeKind": "land",
+      "costBp": 10000
+    }
+  ]
+}

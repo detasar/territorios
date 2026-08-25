@@ -3,10 +3,18 @@
   "publisher": "Instituto Geográfico Nacional / CNIG",
   "detailPage": "https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=9000029",
   "queryUrl": "https://mapas.fomento.gob.es/arcgis/rest/services/SIU/ENTIDADES_TERRITORIALES_EGRN/MapServer/2/query?where=1%3D1&outFields=CodINE%2CNAMEUNIT%2CNATCODE&returnGeometry=true&outSR=4326&maxAllowableOffset=0.005&geometryPrecision=5&f=geojson",
-  "retrievedAt": "2026-08-25T01:51:18.771Z",
+  "retrievedAt": "2026-08-25T02:42:07.221Z",
   "license": "CC-BY 4.0 compatible",
   "attribution": "Obra derivada de BDLJE CC-BY 4.0 ign.es",
+  "transformations": [
+    "Filtered unassigned territory code 54",
+    "Rewound polygon exteriors to RFC 7946 right-hand-rule orientation",
+    "Simplified by the source service with maxAllowableOffset=0.005"
+  ],
   "featureCount": 52,
+  "landAdjacencyCount": 107,
+  "seaRouteCount": 9,
   "sourceSha256": "bd592f292b431a7c6b32ee07efc4da24b70a02e2facaff9e42b80d4ebca36c4b",
-  "outputSha256": "02f5afe7e081791b5d68d222a8604c50169de7ed9d4a375b6a5e7ac5f15d7704"
+  "outputSha256": "72ade98e2ac51babd30d5cc96f446587b2114089162de123484cec551723067b",
+  "worldOutputSha256": "3d10d8e16282c47a4cbf58afba8e34cbfa2d254c34d067b978bb4eb774836dc7"
 }

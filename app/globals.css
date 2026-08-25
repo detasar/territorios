@@ -91,6 +91,8 @@ button:focus-visible, a:focus-visible, [role='button']:focus-visible { outline: 
 .province-layer path[data-faction='coral'] { fill: #c85b50; }
 .province-layer path[data-faction='teal'] { fill: #4a8d87; }
 .province-layer path[data-faction='gold'] { fill: #b99a59; }
+.province-layer path[data-faction='navy'] { fill: #35576a; }
+.province-layer path[data-faction='slate'] { fill: #7b898d; }
 .province-layer path[data-faction='neutral'] { fill: #849199; }
 .province-layer path[data-faction='contested'] { fill: url('#siege-lines'); }
 .province-layer path[data-selected='true'] { stroke: #fff6d8; stroke-width: 2.5; filter: url('#selected-glow'); }
@@ -154,6 +156,7 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4p
 .support-balance { border-radius: 999px; background: rgb(45 123 120 / 9%); padding: 6px 8px; color: var(--teal); font-size: 9px; font-weight: 800; }
 .support-card > p { margin: 12px 0; color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
 .primary-action { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 0; border-radius: 11px; background: var(--navy); box-shadow: 0 7px 16px rgb(11 37 56 / 20%); padding: 12px 13px 12px 16px; color: white; cursor: pointer; font-size: 11px; font-weight: 800; transition: transform 150ms ease, background 150ms ease; }
+.support-card a.primary-action { justify-content: center; text-decoration: none; }
 .primary-action:hover { background: var(--navy-2); transform: translateY(-1px); }
 .primary-action:disabled { cursor: not-allowed; opacity: .5; transform: none; }
 .action-cost { display: flex; align-items: center; gap: 5px; border-radius: 7px; background: rgb(255 255 255 / 11%); padding: 5px 7px; }
@@ -162,6 +165,8 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4p
 .fair-play-note > svg { flex: 0 0 auto; width: 17px; height: 17px; }
 .fair-play-note span { display: grid; }
 .fair-play-note strong { color: var(--teal); }
+.command-message { margin: 10px 1px 0 !important; color: var(--teal) !important; font-weight: 700; }
+.command-alert { border: 1px solid rgb(169 54 52 / 26%); border-radius: 12px; background: rgb(223 91 80 / 10%); padding: 11px 13px; color: var(--coral-dark); font-size: 10px; font-weight: 750; }
 .activity-card { padding: 17px 18px; }
 .section-heading { justify-content: space-between; }
 .section-heading button { border: 0; background: transparent; color: var(--coral-dark); cursor: pointer; font-size: 9px; font-weight: 800; }

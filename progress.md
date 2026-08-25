@@ -15,10 +15,14 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Shipped the first playable map slice with deterministic combat, province selection, free support, keyboard/fullscreen controls, and text-state automation hooks.
 - 2026-08-25: Passed 11 tests, typecheck, lint, production build, and the first live HTTP preview.
 - 2026-08-25: Created and pushed the private GitHub repository `detasar/territorios`.
+- 2026-08-25: Added the authoritative 26-table D1 game model, append-only economy/event ledgers, request-triggered hourly reconciliation, deterministic capture gates, replay hashes, season state, and faction/player leaderboards.
+- 2026-08-25: Added authenticated, same-origin, idempotent faction and support commands with atomic balance authorization, per-command rate limits, and generic server errors.
+- 2026-08-25: Rewound the official province geometry to RFC 7946 orientation after browser automation exposed a whole-sphere rendering defect; the 52-province map and authenticated support flow now pass screenshot/state verification.
+- 2026-08-25: Passed a clean D1 migration rehearsal (29 tables including Wrangler metadata, 14 append-only/authorization triggers), 43 tests, 91.2% statement coverage, 81.67% branch coverage, typecheck, lint, and production build.
 
 ## Current task
 
-- Build the authoritative D1 game world, append-only economy, tick reconciliation, capture replay, seasons, and leaderboard.
+- Build council elections, constrained communications/moderation, notification preferences, localization, and accessibility surfaces.
 
 ## Planned MVPs
 
@@ -30,6 +34,6 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 
 ## TODO
 
-- Define and migrate the D1 game schema.
-- Add authenticated command/query APIs with server-side authorization and idempotency.
-- Reconcile deterministic battle ticks and expose replay/leaderboard views.
+- Add council ballots and five-seat election resolution.
+- Replace placeholder council activity with append-only game events and replay/leaderboard views.
+- Add predefined announcements, reports/moderation, bounded notifications, Spanish/English localization, and accessibility verification.
