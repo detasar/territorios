@@ -22,6 +22,7 @@
     "verify:runtime": "bash scripts/verify-runtime-smoke.sh",
     "verify:bootstrap": "bash scripts/verify-local-bootstrap.sh",
     "verify:webhook": "node scripts/verify-payment-webhook.mjs",
+    "beta:metrics": "node scripts/export-beta-metrics.mjs",
     "data:provinces": "node scripts/fetch-provinces.mjs"
   },
   "dependencies": {

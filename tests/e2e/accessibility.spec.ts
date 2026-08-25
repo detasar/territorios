@@ -73,6 +73,10 @@ test('keeps the completed onboarding state accessible', async ({ page }) => {
   const represent = page.getByRole('button', { name: /Representar / });
   const support = page.getByRole('button', { name: /Enviar 50 refuerzos/ });
   if (await represent.count()) {
+    const age = page.getByLabel(/Confirmo que tengo 18 años/i);
+    const consent = page.getByLabel(/Acepto participar voluntariamente/i);
+    if (await age.count()) await age.check();
+    if (await consent.count()) await consent.check();
     await represent.click();
     await expect(support).toBeVisible();
     await expect(support).toBeEnabled();
@@ -88,31 +92,30 @@ test('keeps the completed onboarding state accessible', async ({ page }) => {
   expect(results.violations).toEqual([]);
 });
 
-test('exposes a transparent sandbox store and accessible legal surface', async ({ page }) => {
+test('hides payments and exposes an accessible closed-beta privacy surface', async ({ page }) => {
   await openAuthenticatedGame(page);
-  const store = page.getByRole('tab', { name: 'Tienda sandbox' });
-  await store.scrollIntoViewIfNeeded();
-  await store.click();
+  await expect(page.getByRole('tab', { name: 'Tienda sandbox' })).toHaveCount(0);
+  await expect(page.getByText(/BETA CERRADA · 18\+ · SIN DINERO REAL/i)).toBeVisible();
+  await expect(page.getByText(/no conceden propiedad.*autoridad política/i)).toBeVisible();
+  const payments = await page.request.get('/api/payments');
+  expect(payments.status()).toBe(404);
 
-  await expect(page.getByText('Stripe Sandbox', { exact: true })).toBeVisible();
-  await expect(page.getByText('LÍMITE DE JUEGO LIMPIO 20%', { exact: true })).toBeVisible();
-  await expect(page.getByText(/no se puede transferir ni canjear por dinero/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Abrir pago sandbox' }).first()).toBeDisabled();
-
-  const storeAxe = await new AxeBuilder({ page })
+  const betaAxe = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
     .analyze();
-  expect(storeAxe.violations).toEqual([]);
+  expect(betaAxe.violations).toEqual([]);
 
-  await page.goto('/legal/terms');
-  await expect(page.getByRole('heading', { name: /Condiciones de la beta/i })).toBeVisible();
+  await page.goto('/legal/privacy');
+  await expect(page.getByRole('heading', { name: /Aviso de privacidad/i })).toBeVisible();
+  await expect(page.getByText(/Responsable: Davut Emre/i)).toBeVisible();
+  await expect(page.getByText(/Copias de seguridad: rotación máxima de 30 días/i)).toBeVisible();
   const legalAxe = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
     .analyze();
   expect(legalAxe.violations).toEqual([]);
 
-  await page.goto('/legal/terms?lang=en');
-  await expect(page.getByRole('heading', { name: /Territorios Beta Terms/i })).toBeVisible();
-  await expect(page.getByText(/non-transferable digital content/i)).toBeVisible();
+  await page.goto('/legal/privacy?lang=en');
+  await expect(page.getByRole('heading', { name: /Beta Privacy Notice/i })).toBeVisible();
+  await expect(page.getByText(/Controller: Davut Emre/i)).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Legal documents' }).getByRole('link').first()).toHaveAttribute('href', '/legal/terms?lang=en');
 });

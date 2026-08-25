@@ -13,6 +13,7 @@ import {
   type RefObject,
 } from 'react';
 import type { CommunitySnapshot, WorldSnapshot } from '../contracts/game';
+import { BETA_OPERATIONS, FOCUS_PROVINCES } from '../beta/config';
 import { resolveBattleTick } from '../domain/combat/combat';
 import {
   deriveSupportImpact,
@@ -31,6 +32,7 @@ import {
   uiCopy,
 } from '../i18n/messages';
 import { CommunityHub } from './community-hub';
+import { BetaOperations } from './beta-operations';
 
 type Position = [number, number];
 
@@ -195,6 +197,8 @@ export function TerritoriosGame({
   );
   const [selectedBattleId, setSelectedBattleId] = useState('');
   const [selectedRole, setSelectedRole] = useState<PlayerRole>('defender');
+  const [betaAgeConfirmed, setBetaAgeConfirmed] = useState(false);
+  const [betaConsentAccepted, setBetaConsentAccepted] = useState(false);
   const [supportAvailable, setSupportAvailable] = useState(0);
   const [attackerPower, setAttackerPower] = useState(7_000);
   const [siegeBp, setSiegeBp] = useState(4_200);
@@ -210,6 +214,7 @@ export function TerritoriosGame({
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const mapHelpTriggerRef = useRef<HTMLButtonElement>(null);
   const provinceRefs = useRef(new Map<string, SVGPathElement>());
+  const recordedMetrics = useRef(new Set<string>());
   const copy = uiCopy[locale];
   const changeLocale = useCallback((nextLocale: AppLocale) => {
     setCommandMessage('');
@@ -324,6 +329,23 @@ export function TerritoriosGame({
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  useEffect(() => {
+    if (!world?.viewer?.betaConsent) return;
+    const events = ['beta-notice-viewed', ...(world.viewer.membership ? [] : ['join-screen-viewed'])];
+    for (const event of events) {
+      if (recordedMetrics.current.has(event)) continue;
+      recordedMetrics.current.add(event);
+      void fetch('/api/beta/metric', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': `beta-metric-${event}-${crypto.randomUUID()}`,
+        },
+        body: JSON.stringify({ event }),
+      }).catch(() => undefined);
+    }
+  }, [world?.viewer?.betaConsent, world?.viewer?.membership]);
 
   const resolveTicks = useCallback((milliseconds: number) => {
     if (!Number.isFinite(milliseconds) || milliseconds < 0) return;
@@ -553,13 +575,27 @@ export function TerritoriosGame({
     if (navigator.share) {
       try {
         await navigator.share(data);
+        recordShareMetric();
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
       }
     }
     await navigator.clipboard.writeText(`${data.text} ${data.url}`);
+    recordShareMetric();
     setCommandMessage(copy.linkCopied);
+  };
+
+  const recordShareMetric = () => {
+    if (!world?.viewer?.betaConsent) return;
+    void fetch('/api/beta/metric', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': `beta-metric-share-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({ event: 'share-opened' }),
+    }).catch(() => undefined);
   };
 
   const sendSupport = async () => {
@@ -607,6 +643,24 @@ export function TerritoriosGame({
     setCommandPending(true);
     setCommandMessage('');
     try {
+      if (!world.viewer.betaConsent) {
+        const consentResponse = await fetch('/api/beta/consent', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-key': `beta-consent-${crypto.randomUUID()}`,
+          },
+          body: JSON.stringify({
+            ageConfirmed: betaAgeConfirmed,
+            consentAccepted: betaConsentAccepted,
+            consentVersion: BETA_OPERATIONS.consentVersion,
+          }),
+        });
+        const consentResult = await consentResponse.json() as { participantId?: string; error?: string };
+        if (!consentResponse.ok || !consentResult.participantId) {
+          throw new Error(locale === 'es' && consentResult.error ? consentResult.error : copy.joinRejected);
+        }
+      }
       const response = await fetch('/api/game/join', {
         method: 'POST',
         headers: {
@@ -654,6 +708,12 @@ export function TerritoriosGame({
           <button ref={profileTriggerRef} className="avatar" aria-label={copy.openProfile} onClick={() => setProfileOpen(true)}>{world?.viewer?.displayName.slice(0, 2).toUpperCase() ?? 'TC'}</button>
         </div>
       </header>
+
+      <BetaOperations
+        authenticated={Boolean(world?.viewer)}
+        consent={world?.viewer?.betaConsent ?? null}
+        locale={locale}
+      />
 
       {profileOpen ? (
         <SurfaceDialog titleId="profile-dialog-title" triggerRef={profileTriggerRef} onClose={() => setProfileOpen(false)}>
@@ -876,12 +936,39 @@ export function TerritoriosGame({
               <a className="primary-action" href="/signin-with-chatgpt?return_to=%2F">{copy.signIn}</a>
             ) : !world.viewer.membership ? (
               <div className="join-controls">
+                <fieldset className="focus-provinces">
+                  <legend>{copy.betaFocus}</legend>
+                  <div>
+                    {FOCUS_PROVINCES.map((province) => (
+                      <button
+                        key={province.code}
+                        type="button"
+                        aria-pressed={selectedTerritory === province.code}
+                        onClick={() => selectTerritory(province.code)}
+                      >{province.name}</button>
+                    ))}
+                  </div>
+                  <small>{copy.betaFocusNote}</small>
+                </fieldset>
                 <label htmlFor="role-choice">{copy.chooseRole}</label>
                 <select id="role-choice" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as PlayerRole)} disabled={commandPending}>
                   {(Object.keys(roleLabels[locale]) as PlayerRole[]).map((role) => <option key={role} value={role}>{roleLabels[locale][role]}</option>)}
                 </select>
                 <p className="role-description">{roleActionDescriptions[locale][selectedRole]}</p>
-                <button className="primary-action" type="button" disabled={commandPending} onClick={joinSelectedFaction}>{interpolate(copy.represent, { name: selectedName })}</button>
+                {!world.viewer.betaConsent ? (
+                  <fieldset className="beta-consent">
+                    <legend>{interpolate(copy.betaConsentLegend, { version: BETA_OPERATIONS.consentVersion })}</legend>
+                    <label><input type="checkbox" checked={betaAgeConfirmed} onChange={(event) => setBetaAgeConfirmed(event.target.checked)} />{copy.betaAgeConfirm}</label>
+                    <label><input type="checkbox" checked={betaConsentAccepted} onChange={(event) => setBetaConsentAccepted(event.target.checked)} />{copy.betaConsentConfirm}</label>
+                    <a href={`/legal/privacy?lang=${locale}`}>{copy.privacy}</a>
+                  </fieldset>
+                ) : null}
+                <button
+                  className="primary-action"
+                  type="button"
+                  disabled={commandPending || (!world.viewer.betaConsent && (!betaAgeConfirmed || !betaConsentAccepted))}
+                  onClick={joinSelectedFaction}
+                >{interpolate(copy.represent, { name: selectedName })}</button>
               </div>
             ) : activeBattle?.canSupport ? (
               <button className="primary-action" type="button" disabled={supportAvailable < 50 || commandPending} onClick={sendSupport} aria-label={interpolate(copy.sendFiftyTo, { origin: activeBattle.originName, target: activeBattle.targetName })}><span>{commandPending ? copy.registering : copy.sendFifty}</span><span className="action-cost"><ResourceIcon kind="shield" />50</span></button>

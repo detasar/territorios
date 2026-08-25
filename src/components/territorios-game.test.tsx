@@ -71,6 +71,7 @@ const gameSnapshot = {
   catalog: [],
   viewer: {
     displayName: 'Jugadora de prueba',
+    betaConsent: { version: 'closed-beta-2026-08-25-v1', participantId: 'P-1234ABCD', consentedAt: Date.UTC(2026, 7, 25, 2) },
     membership: { factionId: 'faction-28', factionName: 'Casa de Madrid', territoryCode: '28', role: 'strategist', contributionScore: 0 },
     wallet: { freeSupport: 300, paidSupport: 0, supporterPoints: 0 },
     preferences: { locale: 'es', quietHoursStart: 22, quietHoursEnd: 8, maxWarAlertsPerDay: 1, councilAlerts: true },
@@ -308,6 +309,55 @@ describe('TerritoriosGame', () => {
       '/api/game/join',
       expect.objectContaining({ body: expect.stringContaining('"role":"strategist"') }),
     );
+  });
+
+  it('requires versioned adult beta consent before a newcomer can join', async () => {
+    const newcomer = {
+      ...gameSnapshot,
+      viewer: { ...gameSnapshot.viewer, membership: null, betaConsent: null },
+    };
+    const joined = {
+      ...gameSnapshot,
+      viewer: {
+        ...gameSnapshot.viewer,
+        membership: {
+          factionId: 'faction-45',
+          factionName: 'Casa de Toledo',
+          territoryCode: '45',
+          role: 'defender',
+          contributionScore: 0,
+        },
+      },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('provinces.geojson')) return { ok: true, json: async () => provinces };
+      if (url === '/api/game' && !init?.method) return { ok: true, json: async () => newcomer };
+      if (url === '/api/beta/consent') {
+        return { ok: true, json: async () => gameSnapshot.viewer.betaConsent };
+      }
+      if (url === '/api/game/join') return { ok: true, json: async () => joined };
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
+    render(<TerritoriosGame />);
+    const join = await screen.findByRole('button', { name: /representar toledo/i });
+    expect(join).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Madrid' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Málaga' })).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/confirmo que tengo 18 años/i));
+    await user.click(screen.getByLabelText(/acepto participar voluntariamente/i));
+    expect(join).toBeEnabled();
+    await user.click(join);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/beta/consent', expect.objectContaining({
+      body: expect.stringContaining('closed-beta-2026-08-25-v1'),
+    }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/game/join', expect.any(Object));
+    expect(await screen.findByText('Ahora representas Toledo.')).toBeInTheDocument();
   });
 
   it('surfaces narrow join and support errors and clears pending state', async () => {

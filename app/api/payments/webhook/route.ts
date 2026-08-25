@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { processStripeEvent } from '../../../../db/payments';
 import { StripeConfigurationError, verifyStripeWebhook } from '../../../../src/server/stripe';
+import { paymentsEnabledForRelease, PAYMENTS_DISABLED_MESSAGE } from '../../../../src/server/payment-availability';
 
 export async function POST(request: Request) {
+  if (!paymentsEnabledForRelease()) {
+    return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 404, headers: { 'cache-control': 'no-store' } });
+  }
   const signature = request.headers.get('stripe-signature');
   if (!signature) {
     return NextResponse.json({ error: 'Firma de webhook ausente.' }, { status: 400 });

@@ -12,91 +12,98 @@ type LegalDocument = {
 const spanishDocuments: Record<string, LegalDocument> = {
   terms: {
     title: 'Condiciones de la beta de Territorios',
-    summary: 'Versión paid-beta-2026-08-25 · Borrador operativo para una demostración sandbox, no asesoramiento jurídico.',
+    summary: 'Versión closed-beta-2026-08-25-v1 · Beta privada 18+ sin dinero real; no es una oferta comercial.',
     sections: [
       {
         heading: 'Alcance de esta demostración',
         paragraphs: [
-          'Territorios es un juego de estrategia territorial persistente. La publicación actual es una beta técnica. El checkout señalado como Stripe Sandbox no debe cobrar tarjetas reales ni constituye una oferta comercial pública.',
-          'La identidad fiscal del operador, domicilio, canal formal de soporte y textos localizados definitivos deben completarse y revisarse por asesoría española antes de activar pagos reales.',
+          'Territorios es un juego de estrategia territorial persistente operado para un grupo invitado por Davut Emre. Esta versión no muestra tienda, no configura Stripe y no permite pagos ni tarjetas reales.',
+          'La beta no es pública. Activar pagos, ampliar el público o presentar el servicio como producto comercial requiere una revisión jurídica y operativa separada.',
         ],
       },
       {
         heading: 'Cuenta y edad',
         bullets: [
           'El juego gratuito usa la identidad de inicio de sesión de ChatGPT Sites.',
-          'La beta de pago está limitada a personas de 18 años o más mediante una declaración expresa; esa declaración no sustituye una verificación de edad cuando la ley o el proveedor la exijan.',
-          'Una cuenta no puede usar automatización, suplantación, múltiples identidades coordinadas ni instrumentos de pago ajenos sin autorización.',
+          'La beta está limitada a personas invitadas de 18 años o más mediante una declaración expresa y consentimiento versionado.',
+          'Una cuenta no puede usar automatización, suplantación ni múltiples identidades coordinadas.',
         ],
       },
       {
         heading: 'Naturaleza del contenido digital',
         bullets: [
-          'Los paquetes son contenido digital no transferible; no son donaciones, propiedad sobre una provincia ni participaciones políticas.',
+          'No hay paquetes de pago en esta beta. Las unidades, la Corona y las provincias son elementos simbólicos del juego; no son inversión, propiedad ni participación política.',
           'No existe cash-out, reventa, intercambio entre jugadores, premio material, criptoactivo, apuesta, loot box ni torneo de entrada pagada.',
-          'La potencia pagada está limitada matemáticamente al 20% de la potencia efectiva de cada bando por tick. El exceso queda en cola; no evade el límite.',
-          'Los precios y unidades se determinan exclusivamente en el servidor. El navegador no demuestra saldo, compra ni victoria.',
+          'Todas las contribuciones disponibles para participantes son gratuitas y se determinan exclusivamente en el servidor.',
         ],
       },
       {
         heading: 'Suspensión y cambios',
         paragraphs: [
-          'Podemos pausar compras o una cuenta ante fraude, chargeback, abuso, riesgo para menores o incumplimiento de las reglas. Las temporadas, el equilibrio y la disponibilidad pueden cambiar, pero los eventos históricos se conservan para auditoría y replay.',
+          'El operador puede cerrar el acceso o pausar una cuenta ante abuso, riesgo para menores, incidente de seguridad o incumplimiento de las reglas. Las temporadas, el equilibrio y la disponibilidad pueden cambiar; el aviso de privacidad define qué historial se conserva y por cuánto tiempo.',
         ],
       },
     ],
   },
   privacy: {
     title: 'Aviso de privacidad de la beta',
-    summary: 'Minimización por diseño · El MVP no almacena datos de tarjeta ni contenido de chat libre.',
+    summary: 'Responsable: Davut Emre · Minimización por diseño · Sin tarjeta, geolocalización ni chat libre.',
     sections: [
       {
         heading: 'Datos tratados',
         bullets: [
           'Identificador, correo y nombre visible aportados por ChatGPT Sites para autenticar la cuenta.',
           'Provincia, rol, votos, órdenes, contribuciones, preferencias, reportes y registros antifraude/auditoría del juego.',
-          'Identificadores de sesión, intención y evento de Stripe, importes, moneda y estado. Los datos completos de tarjeta y facturación permanecen en Stripe.',
+          'ID aleatorio de participante, versión/fecha del consentimiento, métricas de tareas, solicitudes de soporte/seguridad/privacidad y su estado.',
           'La versión inicial no implementa mensajería privada, geolocalización precisa ni huella de dispositivo.',
         ],
       },
       {
         heading: 'Finalidades y seguridad',
         paragraphs: [
-          'Los datos se usan para operar el mundo autoritativo, prevenir abuso, cumplir solicitudes de pago e investigar disputas. Los payloads de pago almacenados se reducen a identificadores y hashes; no se copia el objeto completo del proveedor.',
-          'D1 es la fuente canónica del runtime. Los eventos de juego, pagos y auditoría relevantes son append-only. La sesión de autenticación usa las cookies gestionadas por ChatGPT Sites.',
+          'Los datos se usan para autenticar, operar el mundo autoritativo, medir si la beta es comprensible, responder solicitudes y prevenir abuso. La ejecución del juego solicitada por el participante se apoya en la relación de beta; el estudio voluntario en consentimiento; y seguridad/moderación en el interés legítimo de proteger el grupo.',
+          'D1 es la fuente canónica del runtime. Los eventos de juego y auditoría relevantes son append-only mientras la beta está activa. La autenticación usa las cookies necesarias gestionadas por ChatGPT Sites; Territorios no añade cookies publicitarias.',
         ],
       },
       {
-        heading: 'Pendientes antes de producción',
+        heading: 'Encargados, transferencias y conservación',
+        bullets: [
+          'OpenAI/ChatGPT Sites aporta autenticación y superficie de aplicación conforme a sus avisos; Cloudflare procesa hosting y D1 conforme a sus condiciones y DPA. Stripe no recibe datos porque no está configurado en esta beta.',
+          'Estos proveedores pueden implicar tratamiento internacional según sus términos y salvaguardas. Los enlaces oficiales aparecen al final; la beta no afirma residencia exclusiva en la UE.',
+          'Identidad de cuenta y estado de juego: hasta 30 días después de terminar la beta; luego se eliminan o se desvinculan los identificadores directos.',
+          'Reportes, seguridad y auditoría: 90 días desde cierre, salvo incidente activo u obligación aplicable. Copias de seguridad: rotación máxima de 30 días. Prueba de consentimiento y solicitudes: 12 meses.',
+        ],
+      },
+      {
+        heading: 'Tus derechos y contacto',
         paragraphs: [
-          'El responsable del tratamiento, contacto de privacidad, bases jurídicas por finalidad, plazos de conservación, transferencias internacionales, encargados y procedimiento de derechos deben publicarse con identidad legal real antes de una beta pública con pagos.',
+          'Desde “Contacto y derechos” puedes pedir acceso o eliminación sin escribir correo, dirección ni texto libre. Recibirás un ID de solicitud y revisión inicial en un máximo de 24 horas. La eliminación puede conservar un registro mínimo cuando sea necesario para seguridad, una obligación aplicable o la defensa de reclamaciones; se explicará en la respuesta.',
+          'La solicitud cubre los datos de Territorios. Los datos de la cuenta ChatGPT se gestionan por separado con los controles y el portal de privacidad de OpenAI.',
         ],
       },
     ],
   },
   refunds: {
     title: 'Política de reembolsos y disputas',
-    summary: 'Borrador beta · El entorno sandbox no mueve dinero real.',
+    summary: 'No hay compras ni reembolsos: la beta cerrada no acepta dinero real ni checkout sandbox.',
     sections: [
       {
         heading: 'Reembolsos',
         bullets: [
-          'Una solicitud debe identificar la compra desde el historial de la cuenta; nunca debe incluir números completos de tarjeta.',
-          'Un reembolso confirmado por webhook revoca proporcionalmente el apoyo pagado aún disponible y el derecho digital asociado.',
-          'Si el apoyo ya se utilizó, el saldo nunca se vuelve negativo: la cuenta pasa a revisión. Ningún reembolso reescribe capturas o ticks históricos.',
-          'El plazo, las excepciones de contenido digital y el mecanismo de desistimiento deben ser cerrados por asesoría de consumo española antes de cobrar dinero real.',
+          'Esta versión no ofrece tienda ni solicita datos de tarjeta.',
+          'Si observas un cargo relacionado con Territorios, registra de inmediato una solicitud de seguridad: sería un incidente porque esta release no tiene pagos habilitados.',
         ],
       },
       {
         heading: 'Chargebacks',
         paragraphs: [
-          'Una disputa pausa nuevas compras y retira solamente el apoyo disponible. Si la disputa se gana, se restaura únicamente lo realmente retirado, descontando cualquier reembolso vigente. Una disputa perdida mantiene la cuenta en revisión.',
+          'No existe un flujo de chargeback en la beta cerrada. Cualquier futura prueba comercial requerirá un release, consentimiento, política y revisión separados.',
         ],
       },
       {
         heading: 'Fuente de verdad',
         paragraphs: [
-          'La pantalla de éxito no concede contenido. Solo un evento test-mode firmado por Stripe, verificado contra el cuerpo HTTP sin modificar y procesado de forma idempotente, puede completar una compra.',
+          'La metadata visible del release declara realMoney=false y la interfaz no ofrece la tienda. No se añaden secretos de Stripe al deployment.',
         ],
       },
     ],
@@ -110,7 +117,7 @@ const spanishDocuments: Record<string, LegalDocument> = {
         bullets: [
           'Una persona, una cuenta activa y una membresía de facción por temporada.',
           'Quedan prohibidos bots, macros, explotación de errores, colusión multicuenta, sabotaje con cuentas falsas y manipulación de pagos.',
-          'La potencia pagada no puede superar el 20% de la potencia efectiva por bando y tick.',
+          'Esta beta no tiene potencia pagada: todos los refuerzos disponibles para participantes son gratuitos.',
           'Las decisiones del consejo usan una silla por usuario y un voto de igual peso; el asiento de apoyo está limitado y no controla por sí solo el objetivo.',
         ],
       },
@@ -149,7 +156,8 @@ const spanishDocuments: Record<string, LegalDocument> = {
       {
         heading: 'Moderación y recurso',
         paragraphs: [
-          'Report, mute y block están disponibles desde la actividad. Los reportes se redactan para ocultar datos personales y quedan en una cola de revisión humana. Una regla o clasificador puede priorizar, pero no debe ser el único decisor de una sanción material. El proceso formal de apelación debe completarse antes de una comunidad pública a escala.',
+          'Report, mute y block están disponibles desde la actividad. Davut Emre actúa como moderador/on-call de esta beta: amenaza urgente o doxxing se revisa en 1 hora; reporte normal en 24 horas; apelación en 72 horas. Una regla puede priorizar, pero una sanción material requiere decisión humana.',
+          'La vía “Contacto y derechos” permite registrar seguridad urgente y apelaciones con un recibo. El operador puede poner el sitio en solo propietario mientras investiga. Riesgo inmediato para una persona se escala a los servicios de emergencia adecuados; material de abuso infantil no se redistribuye y se escala a la autoridad/canal competente.',
         ],
       },
     ],
@@ -159,91 +167,98 @@ const spanishDocuments: Record<string, LegalDocument> = {
 const englishDocuments: Record<string, LegalDocument> = {
   terms: {
     title: 'Territorios Beta Terms',
-    summary: 'Version paid-beta-2026-08-25 · Operational draft for a sandbox demonstration, not legal advice.',
+    summary: 'Version closed-beta-2026-08-25-v1 · Private 18+ beta with no real money; not a commercial offer.',
     sections: [
       {
         heading: 'Scope of this demonstration',
         paragraphs: [
-          'Territorios is a persistent territorial strategy game. The current release is a technical beta. Checkout clearly marked Stripe Sandbox must not charge real cards and is not a public commercial offer.',
-          'The operator’s legal and tax identity, address, formal support channel, and final localized terms must be completed and reviewed by Spanish counsel before real payments are enabled.',
+          'Territorios is a persistent territorial strategy game operated for an invited group by Davut Emre. This release shows no store, configures no Stripe credentials, and accepts no payments or real cards.',
+          'The beta is not public. Enabling payments, widening access, or presenting the service as commercial requires a separate legal and operational review.',
         ],
       },
       {
         heading: 'Account and age',
         bullets: [
           'Free play uses the ChatGPT Sites sign-in identity.',
-          'The paid beta is limited to people aged 18 or older through an explicit declaration. This declaration does not replace age verification when required by law or a provider.',
-          'An account may not use automation, impersonation, coordinated multiple identities, or another person’s payment instrument without authorization.',
+          'The beta is limited to invited people aged 18 or older through an explicit declaration and versioned consent.',
+          'An account may not use automation, impersonation, or coordinated multiple identities.',
         ],
       },
       {
         heading: 'Nature of the digital content',
         bullets: [
-          'Packages are non-transferable digital content. They are not donations, ownership of a province, or political participation.',
+          'There are no paid packages in this beta. Units, the Crown, and provinces are symbolic game elements, not investments, property, or political participation.',
           'There is no cash-out, resale, player-to-player exchange, material prize, cryptoasset, gambling, loot box, or paid-entry tournament.',
-          'Purchased power is mathematically capped at 20% of each side’s effective power per tick. Excess units remain queued and cannot bypass the cap.',
-          'Prices and units are determined exclusively by the server. The browser cannot prove balance, purchase, or victory.',
+          'Every participant contribution available in this beta is free and determined exclusively by the server.',
         ],
       },
       {
         heading: 'Suspension and changes',
         paragraphs: [
-          'We may pause purchases or an account in response to fraud, chargebacks, abuse, risks to minors, or rule violations. Seasons, balance, and availability may change, while historical events remain available for audit and replay.',
+          'The operator may close access or pause an account in response to abuse, risks to minors, a security incident, or rule violations. Seasons, balance, and availability may change; the privacy notice defines which history is retained and for how long.',
         ],
       },
     ],
   },
   privacy: {
     title: 'Beta Privacy Notice',
-    summary: 'Data minimization by design · The MVP stores neither card data nor free-form chat content.',
+    summary: 'Controller: Davut Emre · Data minimization by design · No card, geolocation, or free-form chat data.',
     sections: [
       {
         heading: 'Data processed',
         bullets: [
           'The identifier, email address, and display name supplied by ChatGPT Sites to authenticate the account.',
           'Province, role, ballots, orders, contributions, preferences, reports, and game anti-fraud or audit records.',
-          'Stripe session, intent, and event identifiers, amounts, currency, and status. Full card and billing data remain with Stripe.',
+          'Random participant ID, consent version/time, task metrics, support/security/privacy requests, and their status.',
           'The initial release does not implement private messaging, precise geolocation, or device fingerprinting.',
         ],
       },
       {
         heading: 'Purposes and security',
         paragraphs: [
-          'Data is used to operate the authoritative world, prevent abuse, fulfill payment requests, and investigate disputes. Stored payment payloads are reduced to identifiers and hashes; the complete provider object is not copied.',
-          'D1 is the canonical runtime source. Relevant game, payment, and audit events are append-only. Authentication uses cookies managed by ChatGPT Sites.',
+          'Data is used to authenticate, operate the authoritative world, evaluate beta comprehension, answer requests, and prevent abuse. Requested game operation relies on the beta relationship, the voluntary study on consent, and security/moderation on the legitimate interest of protecting the group.',
+          'D1 is the canonical runtime source. Relevant game and audit events remain append-only while the beta is active. Authentication uses necessary cookies managed by ChatGPT Sites; Territorios adds no advertising cookies.',
         ],
       },
       {
-        heading: 'Required before production',
+        heading: 'Processors, transfers, and retention',
+        bullets: [
+          'OpenAI/ChatGPT Sites supplies authentication and the application surface under its notices; Cloudflare processes hosting and D1 under its terms and DPA. Stripe receives no data because it is not configured for this beta.',
+          'Those providers may involve international processing under their terms and safeguards. Official references appear below; the beta does not claim EU-only residency.',
+          'Account identity and game state: up to 30 days after beta closure, followed by deletion or unlinking of direct identifiers.',
+          'Reports, security, and audit records: 90 days after closure unless an incident or applicable duty remains open. Backups: maximum 30-day rotation. Consent/request proof: 12 months.',
+        ],
+      },
+      {
+        heading: 'Your rights and contact',
         paragraphs: [
-          'The controller’s identity, privacy contact, legal basis for each purpose, retention periods, international transfers, processors, and rights procedure must be published with the real legal identity before a public beta with payments.',
+          'Use “Contact and rights” to request access or deletion without entering an email, address, or free text. You receive a request ID and an initial review within 24 hours. A minimal record may be retained where needed for security, an applicable duty, or legal claims; the response will explain this.',
+          'The request covers Territorios data. ChatGPT account data is managed separately through OpenAI data controls and its privacy portal.',
         ],
       },
     ],
   },
   refunds: {
     title: 'Refund and Dispute Policy',
-    summary: 'Beta draft · The sandbox environment does not move real money.',
+    summary: 'No purchases or refunds: the closed beta accepts neither real money nor sandbox checkout.',
     sections: [
       {
         heading: 'Refunds',
         bullets: [
-          'A request must identify the purchase from account history and must never include a full card number.',
-          'A refund confirmed by webhook proportionally revokes purchased support that is still available and its associated digital entitlement.',
-          'If the support has already been used, the balance never becomes negative; the account enters review. Refunds never rewrite historical captures or ticks.',
-          'Time limits, digital-content exceptions, and the withdrawal mechanism must be finalized by Spanish consumer counsel before real money is charged.',
+          'This release offers no store and asks for no card data.',
+          'If you observe a Territorios-related charge, immediately submit a security request: it would be an incident because this release has no enabled payments.',
         ],
       },
       {
         heading: 'Chargebacks',
         paragraphs: [
-          'A dispute pauses new purchases and removes only support that remains available. If the dispute is won, only the amount actually removed is restored, minus any active refund. A lost dispute keeps the account under review.',
+          'There is no chargeback flow in the closed beta. Any future commercial test requires a separate release, consent, policy, and review.',
         ],
       },
       {
         heading: 'Source of truth',
         paragraphs: [
-          'The success page does not grant content. Only a signed Stripe test-mode event, verified against the unmodified HTTP body and processed idempotently, can complete a purchase.',
+          'Visible release metadata declares realMoney=false, and the interface exposes no store. No Stripe secrets are added to deployment.',
         ],
       },
     ],
@@ -257,7 +272,7 @@ const englishDocuments: Record<string, LegalDocument> = {
         bullets: [
           'One person, one active account, and one faction membership per season.',
           'Bots, macros, bug exploitation, multi-account collusion, fake-account sabotage, and payment manipulation are prohibited.',
-          'Purchased power cannot exceed 20% of either side’s effective power in a tick.',
+          'This beta has no purchased power: every reinforcement available to participants is free.',
           'Council decisions use one seat per user and equal-weight ballots. The supporter seat is capped and cannot control the target by itself.',
         ],
       },
@@ -296,7 +311,8 @@ const englishDocuments: Record<string, LegalDocument> = {
       {
         heading: 'Moderation and appeal',
         paragraphs: [
-          'Report, mute, and block controls are available from activity. Reports are redacted to hide personal data and enter a human-review queue. A rule or classifier may prioritize a case but must not be the sole decision-maker for a material sanction. A formal appeal process must be completed before the community is opened at scale.',
+          'Report, mute, and block controls are available from activity. Davut Emre is moderator/on-call for this beta: urgent threats or doxxing are reviewed within 1 hour, normal reports within 24 hours, and appeals within 72 hours. A material sanction requires a human decision.',
+          '“Contact and rights” records urgent security and appeal requests with a receipt. The operator may return the site to owner-only access while investigating. Immediate danger is escalated to appropriate emergency services; child sexual abuse material is not redistributed and is escalated through the competent authority/channel.',
         ],
       },
     ],
@@ -308,17 +324,32 @@ const documents: Record<AppLocale, Record<string, LegalDocument>> = {
   en: englishDocuments,
 };
 
+const officialReferences = {
+  es: [
+    { href: 'https://commission.europa.eu/law/law-topic/data-protection/information-individuals_en', label: 'Comisión Europea · derechos de las personas' },
+    { href: 'https://openai.com/policies/eu-services-privacy-policy/', label: 'OpenAI · aviso de privacidad para servicios UE' },
+    { href: 'https://www.cloudflare.com/cloudflare-customer-dpa/', label: 'Cloudflare · Data Processing Addendum' },
+  ],
+  en: [
+    { href: 'https://commission.europa.eu/law/law-topic/data-protection/information-individuals_en', label: 'European Commission · individual data rights' },
+    { href: 'https://openai.com/policies/eu-services-privacy-policy/', label: 'OpenAI · EU services privacy policy' },
+    { href: 'https://www.cloudflare.com/cloudflare-customer-dpa/', label: 'Cloudflare · Data Processing Addendum' },
+  ],
+} as const;
+
 const pageCopy = {
   es: {
     back: '← Volver al mapa',
     eyebrow: 'Territorios · transparencia beta',
     navigation: 'Documentos legales',
+    references: 'Referencias oficiales',
     updated: 'Última actualización: 25 de agosto de 2026.',
   },
   en: {
     back: '← Back to map',
     eyebrow: 'Territorios · beta transparency',
     navigation: 'Legal documents',
+    references: 'Official references',
     updated: 'Last updated: August 25, 2026.',
   },
 } as const;
@@ -371,6 +402,14 @@ export default async function LegalPage({
           ) : null}
         </section>
       ))}
+      <section>
+        <h2>{copy.references}</h2>
+        <ul>
+          {officialReferences[locale].map((reference) => (
+            <li key={reference.href}><a href={reference.href} target="_blank" rel="noreferrer">{reference.label}</a></li>
+          ))}
+        </ul>
+      </section>
       <nav className="legal-document-nav" aria-label={copy.navigation}>
         {Object.entries(localizedDocuments).map(([slug, entry]) => (
           <Link key={slug} href={`/legal/${slug}?lang=${locale}`}>{entry.title}</Link>

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { BetaConsent } from './beta';
 
 export const territoryCodeSchema = z.string().regex(/^\d{2}$/);
 
@@ -281,6 +282,7 @@ export type WorldSnapshot = {
   }>;
   viewer: null | {
     displayName: string;
+    betaConsent: BetaConsent | null;
     membership: null | {
       factionId: string;
       factionName: string;

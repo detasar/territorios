@@ -4,8 +4,12 @@ import { getChatGPTUser } from '../../../chatgpt-auth';
 import { PaymentCommandError, updatePaymentControls } from '../../../../db/payments';
 import { paymentControlsSchema } from '../../../../src/contracts/payments';
 import { validateMutationRequest } from '../../../../src/server/request-guards';
+import { paymentsEnabledForRelease, PAYMENTS_DISABLED_MESSAGE } from '../../../../src/server/payment-availability';
 
 export async function POST(request: Request) {
+  if (!paymentsEnabledForRelease()) {
+    return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 404, headers: { 'cache-control': 'no-store' } });
+  }
   const guard = validateMutationRequest(request);
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });

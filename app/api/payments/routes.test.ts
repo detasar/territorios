@@ -35,6 +35,9 @@ vi.mock('../../../src/server/stripe', () => ({
   StripeConfigurationError: mocks.StripeConfigurationError,
   verifyStripeWebhook: mocks.verifyStripeWebhook,
 }));
+vi.mock('../../../src/release', () => ({
+  RELEASE_METADATA: { realMoney: true },
+}));
 
 import { GET } from './route';
 import { POST as checkout } from './checkout/route';

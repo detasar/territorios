@@ -13,6 +13,7 @@ import {
 import type { WorldSnapshot } from '../src/contracts/game';
 import { RELEASE_METADATA } from '../src/release';
 import { campaignResolutionValues, reconcileCampaignLifecycle } from './campaigns';
+import { betaConsentForUser, hasCurrentBetaConsent } from './beta';
 import { getRawD1 } from './index';
 import { activeSeasonRecord, ensureWorld, factionId, seasonPhaseAt } from './world-bootstrap';
 
@@ -104,6 +105,9 @@ export async function joinFaction(
 ): Promise<WorldSnapshot> {
   await ensureWorld(now);
   await upsertUser(user, now);
+  if (!await hasCurrentBetaConsent(user.userId)) {
+    throw new GameCommandError('Acepta primero la participación 18+ y el aviso de privacidad de la beta cerrada.', 403);
+  }
   await assertRateLimit(user.userId, 'command.join', 8, HOUR_MILLISECONDS, now);
   const d1 = getRawD1();
   const season = await activeSeason();
@@ -458,8 +462,10 @@ export async function getWorldSnapshot(
           locale: string; quiet_hours_start: number; quiet_hours_end: number;
           max_war_alerts_per_day: number; council_alerts: number;
         }>();
+      const betaConsent = await betaConsentForUser(viewerUserId);
       viewer = {
         displayName: viewerRow.display_name,
+        betaConsent,
         membership: membership ? {
           factionId: membership.faction_id,
           factionName: membership.faction_name,
@@ -635,14 +641,14 @@ export async function getWorldSnapshot(
       payloadHash: row.payload_hash,
       createdAt: row.created_at,
     })),
-    catalog: catalogRows.map((row) => ({
+    catalog: RELEASE_METADATA.realMoney ? catalogRows.map((row) => ({
       id: row.id,
       name: row.name,
       description: row.description,
       priceCents: row.price_cents,
       currency: row.currency,
       paidSupport: row.paid_support,
-    })),
+    })) : [],
     viewer,
     onboarding: {
       nextAction: !viewer

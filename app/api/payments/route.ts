@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getChatGPTUser } from '../../chatgpt-auth';
 import { getPaymentSnapshot } from '../../../db/payments';
+import { paymentsEnabledForRelease, PAYMENTS_DISABLED_MESSAGE } from '../../../src/server/payment-availability';
 
 export async function GET() {
+  if (!paymentsEnabledForRelease()) {
+    return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 404, headers: { 'cache-control': 'no-store' } });
+  }
   const user = await getChatGPTUser();
   if (!user) {
     return NextResponse.json(
