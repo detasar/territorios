@@ -9,10 +9,26 @@ server_pid=""
 verification_port="${TERRITORIOS_BOOTSTRAP_PORT:-3021}"
 base_url="http://localhost:$verification_port"
 
+terminate_process_tree() {
+  local parent_pid="$1"
+  local child_pid
+
+  while IFS= read -r child_pid; do
+    if [[ -n "$child_pid" ]]; then
+      terminate_process_tree "$child_pid"
+    fi
+  done < <(pgrep -P "$parent_pid" 2>/dev/null || true)
+
+  if kill -0 "$parent_pid" 2>/dev/null; then
+    kill "$parent_pid" 2>/dev/null || true
+  fi
+}
+
 cleanup() {
-  if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
-    kill "$server_pid" 2>/dev/null || true
+  if [[ -n "$server_pid" ]]; then
+    terminate_process_tree "$server_pid"
     wait "$server_pid" 2>/dev/null || true
+    server_pid=""
   fi
   if [[ "$runtime_state_dir" == /tmp/territorios-local-bootstrap.* ]]; then
     rm -rf -- "$runtime_state_dir"
@@ -69,4 +85,6 @@ if (!Array.isArray(game.battles) || game.battles.length === 0) {
 }
 NODE
 
+cleanup
+trap - EXIT
 echo "LOCAL_BOOTSTRAP_PASS territories=52 automatic_migrations=true"
