@@ -1,0 +1,12 @@
+{
+  "title": "Límites y Unidades Administrativas Actuales — Provincias",
+  "publisher": "Instituto Geográfico Nacional / CNIG",
+  "detailPage": "https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=9000029",
+  "queryUrl": "https://mapas.fomento.gob.es/arcgis/rest/services/SIU/ENTIDADES_TERRITORIALES_EGRN/MapServer/2/query?where=1%3D1&outFields=CodINE%2CNAMEUNIT%2CNATCODE&returnGeometry=true&outSR=4326&maxAllowableOffset=0.005&geometryPrecision=5&f=geojson",
+  "retrievedAt": "2026-08-25T01:51:18.771Z",
+  "license": "CC-BY 4.0 compatible",
+  "attribution": "Obra derivada de BDLJE CC-BY 4.0 ign.es",
+  "featureCount": 52,
+  "sourceSha256": "bd592f292b431a7c6b32ee07efc4da24b70a02e2facaff9e42b80d4ebca36c4b",
+  "outputSha256": "02f5afe7e081791b5d68d222a8604c50169de7ed9d4a375b6a5e7ac5f15d7704"
+}

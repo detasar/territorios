@@ -11,10 +11,14 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 
 - 2026-08-25: Initialized the ChatGPT Sites project with D1 and Auth capabilities.
 - 2026-08-25: Recorded the product goal and repository-local engineering principles.
+- 2026-08-25: Imported and hash-recorded the official 52-province CNIG-derived geometry.
+- 2026-08-25: Shipped the first playable map slice with deterministic combat, province selection, free support, keyboard/fullscreen controls, and text-state automation hooks.
+- 2026-08-25: Passed 11 tests, typecheck, lint, production build, and the first live HTTP preview.
+- 2026-08-25: Created and pushed the private GitHub repository `detasar/territorios`.
 
 ## Current task
 
-- Finish repository bootstrap, test harness, first map/gameplay slice, and first meaningful preview.
+- Build the authoritative D1 game world, append-only economy, tick reconciliation, capture replay, seasons, and leaderboard.
 
 ## Planned MVPs
 
@@ -26,6 +30,6 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 
 ## TODO
 
-- Add tests before the first gameplay implementation.
-- Import or author an attributable 52-province map dataset suitable for the hosted build.
-- Create the private GitHub repository after the first verified bootstrap commit.
+- Define and migrate the D1 game schema.
+- Add authenticated command/query APIs with server-side authorization and idempotency.
+- Reconcile deterministic battle ticks and expose replay/leaderboard views.
