@@ -17,13 +17,18 @@ database="$work_dir/territorios.sqlite"
 for migration in "${migrations[@]}"; do
   sqlite3 "$database" < "$migration"
 done
-node -e '
-  const { execFileSync } = require("node:child_process");
-  const { readFileSync } = require("node:fs");
-  const [database, manifest] = process.argv.slice(1);
-  const definitions = JSON.parse(readFileSync(manifest, "utf8"));
-  for (const definition of definitions) execFileSync("sqlite3", [database, definition]);
-' "$database" "$repo_root/db/database-guards.json"
+
+install_database_guards() {
+  node -e '
+    const { execFileSync } = require("node:child_process");
+    const { readFileSync } = require("node:fs");
+    const [database, manifest] = process.argv.slice(1);
+    const definitions = JSON.parse(readFileSync(manifest, "utf8"));
+    for (const definition of definitions) execFileSync("sqlite3", [database, definition]);
+  ' "$1" "$repo_root/db/database-guards.json"
+}
+
+install_database_guards "$database"
 
 tables="$(sqlite3 "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")"
 triggers="$(sqlite3 "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger';")"
@@ -52,7 +57,14 @@ sqlite3 "$upgrade_database" "
   INSERT INTO seasons
     (id, number, name, phase, status, starts_at, ends_at, last_resolved_tick, engine_version, created_at)
     VALUES ('season-2', 2, 'Corona 2', 'settlement', 'active', 2419201000, 4838401000, -1, 'combat-2.0.0', 2000);
+  INSERT INTO game_events
+    (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
+    VALUES ('event-world-bootstrap-season-1', 'season-1', 'WORLD_BOOTSTRAPPED', NULL, 'season', 'season-1', '{}', 'hash-season-1', 'combat-2.0.0', 1000);
+  INSERT INTO game_events
+    (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
+    VALUES ('event-world-bootstrap-season-2', 'season-2', 'WORLD_BOOTSTRAPPED', NULL, 'season', 'season-2', '{}', 'hash-season-2', 'combat-2.0.0', 2000);
 "
+install_database_guards "$upgrade_database"
 for migration in "${migrations[@]:1}"; do
   sqlite3 "$upgrade_database" < "$migration"
 done
@@ -60,6 +72,7 @@ upgrade_active_seasons="$(sqlite3 "$upgrade_database" "SELECT COUNT(*) FROM seas
 upgrade_total_seasons="$(sqlite3 "$upgrade_database" 'SELECT COUNT(*) FROM seasons;')"
 upgrade_duplicate_seasons="$(sqlite3 "$upgrade_database" "SELECT COUNT(*) FROM seasons WHERE id = 'season-2';")"
 upgrade_foreign_key_violations="$(sqlite3 "$upgrade_database" 'PRAGMA foreign_key_check;' | wc -l | tr -d ' ')"
+upgrade_triggers="$(sqlite3 "$upgrade_database" "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger';")"
 
 protected_database="$work_dir/territorios-protected-upgrade.sqlite"
 sqlite3 "$protected_database" < "${migrations[0]}"
@@ -74,6 +87,7 @@ sqlite3 "$protected_database" "
     (id, season_id, user_id, territory_code, asset_kind, amount, reason, event_id, idempotency_key, created_at)
     VALUES ('protected-ledger', 'season-2', NULL, NULL, 'free-support', 1, 'test', 'protected-event', 'protected-key', 3000);
 "
+install_database_guards "$protected_database"
 if sqlite3 "$protected_database" < "${migrations[1]}" >/dev/null 2>&1; then
   echo 'Upgrade silently removed or accepted an active season with durable activity.' >&2
   exit 1
@@ -91,6 +105,7 @@ protected_duplicate_seasons="$(sqlite3 "$protected_database" "SELECT COUNT(*) FR
 [[ "$upgrade_total_seasons" == '1' ]] || { echo "Upgrade retained $upgrade_total_seasons total seasons." >&2; exit 1; }
 [[ "$upgrade_duplicate_seasons" == '0' ]] || { echo 'Upgrade retained the untouched future bootstrap duplicate.' >&2; exit 1; }
 [[ "$upgrade_foreign_key_violations" == '0' ]] || { echo "Upgrade foreign-key violations: $upgrade_foreign_key_violations" >&2; exit 1; }
+[[ "$upgrade_triggers" == '19' ]] || { echo "Upgrade retained $upgrade_triggers database guards instead of 19." >&2; exit 1; }
 [[ "$protected_duplicate_seasons" == '1' ]] || { echo 'Upgrade removed an active season with durable activity.' >&2; exit 1; }
 
 echo "D1_MIGRATION_PASS tables=$tables triggers=$triggers purchase_columns=$purchase_columns active_season_guard=$active_season_guard upgrade_cleanup=pass activity_protection=pass integrity=$integrity"

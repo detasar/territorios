@@ -53,6 +53,10 @@ describe('governance and conquest schema contract', () => {
     expect(activeSeasonMigration).toContain('battle_orders');
     expect(activeSeasonMigration).toContain('council_ballots');
     expect(activeSeasonMigration).toContain('purchases');
+    expect(activeSeasonMigration).toContain('DROP TRIGGER IF EXISTS `game_events_no_delete`');
+    expect(activeSeasonMigration).toContain(
+      "CREATE TRIGGER IF NOT EXISTS game_events_no_delete BEFORE DELETE ON game_events",
+    );
   });
 
   it('fails a racing battle insert atomically instead of double-debiting the origin', () => {

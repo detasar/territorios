@@ -115,8 +115,12 @@ WHERE season_id IN (SELECT id FROM `_bootstrap_duplicate_seasons`);
 DELETE FROM ledger_entries
 WHERE season_id IN (SELECT id FROM `_bootstrap_duplicate_seasons`);
 --> statement-breakpoint
+DROP TRIGGER IF EXISTS `game_events_no_delete`;
+--> statement-breakpoint
 DELETE FROM game_events
 WHERE season_id IN (SELECT id FROM `_bootstrap_duplicate_seasons`);
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS game_events_no_delete BEFORE DELETE ON game_events BEGIN SELECT RAISE(ABORT, 'game_events is append-only'); END;
 --> statement-breakpoint
 DELETE FROM faction_memberships
 WHERE season_id IN (SELECT id FROM `_bootstrap_duplicate_seasons`);
