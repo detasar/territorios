@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'drizzle/0000_melodic_captain_flint.sql'),
   'utf8',
 );
+const activeSeasonMigration = readFileSync(
+  resolve(process.cwd(), 'drizzle/0001_single_active_season.sql'),
+  'utf8',
+);
 const campaignRuntime = readFileSync(resolve(process.cwd(), 'db/campaigns.ts'), 'utf8');
 
 describe('governance and conquest schema contract', () => {
@@ -38,6 +42,17 @@ describe('governance and conquest schema contract', () => {
     expect(migration).toContain(
       "CREATE UNIQUE INDEX `battles_active_target_unique` ON `battles` (`season_id`,`target_territory_code`) WHERE `status` = 'active'",
     );
+  });
+
+  it('allows only one active season and only removes untouched bootstrap duplicates', () => {
+    expect(activeSeasonMigration).toContain(
+      "CREATE UNIQUE INDEX `seasons_single_active_unique` ON `seasons` (`status`) WHERE `status` = 'active'",
+    );
+    expect(activeSeasonMigration).toContain('duplicate.starts_at > duplicate.created_at');
+    expect(activeSeasonMigration).toContain('faction_memberships');
+    expect(activeSeasonMigration).toContain('battle_orders');
+    expect(activeSeasonMigration).toContain('council_ballots');
+    expect(activeSeasonMigration).toContain('purchases');
   });
 
   it('fails a racing battle insert atomically instead of double-debiting the origin', () => {

@@ -41,6 +41,9 @@ export const seasons = sqliteTable('seasons', {
   createdAt: integer('created_at').notNull(),
 }, (table) => [
   uniqueIndex('seasons_number_unique').on(table.number),
+  uniqueIndex('seasons_single_active_unique')
+    .on(table.status)
+    .where(sql`${table.status} = 'active'`),
   check('seasons_valid_window', sql`${table.endsAt} > ${table.startsAt}`),
 ]);
 

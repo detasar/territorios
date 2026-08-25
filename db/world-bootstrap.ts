@@ -23,19 +23,49 @@ export type ActiveSeasonRecord = {
   engine_version: string;
   winner_faction_id: string | null;
   finalized_at: number | null;
+  created_at: number;
+  bootstrapped: number;
+};
+
+export type LatestSeasonRecord = {
+  number: number;
+  ends_at: number;
+  status: string;
 };
 
 export async function ensureWorld(now = Date.now()): Promise<void> {
   await ensureDatabaseGuards();
   const active = await findActiveSeason();
-  if (active) return;
+  if (active) {
+    if (active.bootstrapped === 0) {
+      await createSeason(active.number, active.starts_at, active.created_at);
+    }
+    return;
+  }
 
   const latest = await getRawD1()
-    .prepare('SELECT number, ends_at FROM seasons ORDER BY number DESC LIMIT 1')
-    .first<{ number: number; ends_at: number }>();
-  const number = (latest?.number ?? 0) + 1;
-  const startsAt = latest ? Math.max(now, latest.ends_at) : freshSeasonStartAt(now);
-  await createSeason(number, startsAt, now);
+    .prepare('SELECT number, ends_at, status FROM seasons ORDER BY number DESC LIMIT 1')
+    .first<LatestSeasonRecord>();
+  const candidate = nextSeasonCandidate(latest, now);
+  if (!candidate) {
+    const racedActive = await findActiveSeason();
+    if (racedActive?.bootstrapped === 0) {
+      await createSeason(racedActive.number, racedActive.starts_at, racedActive.created_at);
+    }
+    return;
+  }
+  await createSeason(candidate.number, candidate.startsAt, now);
+}
+
+export function nextSeasonCandidate(
+  latest: LatestSeasonRecord | null,
+  now: number,
+): { number: number; startsAt: number } | null {
+  if (latest?.status === 'active') return null;
+  return {
+    number: (latest?.number ?? 0) + 1,
+    startsAt: latest ? Math.max(now, latest.ends_at) : freshSeasonStartAt(now),
+  };
 }
 
 export function freshSeasonStartAt(now: number, fixtureSeasonDay?: number): number {
@@ -82,6 +112,28 @@ async function createSeason(number: number, startsAt: number, createdAt: number)
   const seasonId = seasonIdFor(number);
   const endsAt = startsAt + 28 * DAY_MILLISECONDS;
   const lastResolvedTick = Math.max(-1, tickIndexAt(createdAt, startsAt) - 1);
+  await d1.prepare(
+    `INSERT OR IGNORE INTO seasons
+     (id, number, name, phase, status, starts_at, ends_at, last_resolved_tick, engine_version,
+      winner_faction_id, finalized_at, created_at)
+     VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6, ?7, ?8, NULL, NULL, ?9)`,
+  ).bind(
+    seasonId,
+    number,
+    `Corona ${number}`,
+    seasonPhaseAt(createdAt, startsAt),
+    startsAt,
+    endsAt,
+    lastResolvedTick,
+    ENGINE_VERSION,
+    createdAt,
+  ).run();
+  const claimed = await d1
+    .prepare("SELECT id FROM seasons WHERE id = ?1 AND status = 'active'")
+    .bind(seasonId)
+    .first<{ id: string }>();
+  if (!claimed) return;
+
   const territories = (world as WorldSeed).territories;
   const directedEdges = (world as WorldSeed).adjacencies.flatMap((edge) => [
     edge,
@@ -146,22 +198,6 @@ async function createSeason(number: number, startsAt: number, createdAt: number)
       'territory_adjacencies',
       ['from_code', 'to_code', 'route_kind', 'cost_bp'],
       directedEdges.map((edge) => [edge.from, edge.to, edge.routeKind, edge.costBp]),
-    ),
-    d1.prepare(
-      `INSERT OR IGNORE INTO seasons
-       (id, number, name, phase, status, starts_at, ends_at, last_resolved_tick, engine_version,
-        winner_faction_id, finalized_at, created_at)
-       VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6, ?7, ?8, NULL, NULL, ?9)`,
-    ).bind(
-      seasonId,
-      number,
-      `Corona ${number}`,
-      seasonPhaseAt(createdAt, startsAt),
-      startsAt,
-      endsAt,
-      lastResolvedTick,
-      ENGINE_VERSION,
-      createdAt,
     ),
     ...bindInsert(
       d1,
@@ -344,9 +380,15 @@ export function seasonPhaseAt(now: number, startsAt: number): string {
 async function findActiveSeason(): Promise<ActiveSeasonRecord | null> {
   return getRawD1()
     .prepare(
-      `SELECT id, number, name, phase, status, starts_at, ends_at, last_resolved_tick,
-              engine_version, winner_faction_id, finalized_at
-       FROM seasons WHERE status = 'active' ORDER BY number DESC LIMIT 1`,
+      `SELECT seasons.id, seasons.number, seasons.name, seasons.phase, seasons.status,
+              seasons.starts_at, seasons.ends_at, seasons.last_resolved_tick,
+              seasons.engine_version, seasons.winner_faction_id, seasons.finalized_at,
+              seasons.created_at,
+              CASE WHEN EXISTS (
+                SELECT 1 FROM game_events
+                WHERE game_events.id = 'event-world-bootstrap-' || seasons.id
+              ) THEN 1 ELSE 0 END AS bootstrapped
+       FROM seasons WHERE seasons.status = 'active' ORDER BY seasons.number DESC LIMIT 1`,
     )
     .first<ActiveSeasonRecord>();
 }
