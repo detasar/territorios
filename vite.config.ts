@@ -1,5 +1,6 @@
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
+import { execFileSync } from 'node:child_process';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
 
@@ -13,12 +14,23 @@ export default defineConfig(async () => {
   process.env.WRANGLER_LOG_PATH ??= '.wrangler/logs';
   process.env.MINIFLARE_REGISTRY_PATH ??= '.wrangler/registry';
   const persistencePath = process.env.TERRITORIOS_D1_STATE_PATH?.trim();
+  const gitSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  }).trim();
+  const requestedReleaseSha = process.env.RELEASE_SHA?.trim();
+  if (requestedReleaseSha && requestedReleaseSha !== gitSha) {
+    throw new Error(`RELEASE_SHA ${requestedReleaseSha} does not match checked-out commit ${gitSha}.`);
+  }
 
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
+    define: {
+      __TERRITORIOS_RELEASE_SHA__: JSON.stringify(requestedReleaseSha ?? gitSha),
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,

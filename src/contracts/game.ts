@@ -165,6 +165,13 @@ export type CommunitySnapshot = {
 
 export type WorldSnapshot = {
   mode: 'live-world';
+  release: {
+    version: string;
+    sha: string;
+    shortSha: string;
+    channel: 'closed-beta';
+    realMoney: false;
+  };
   serverTime: number;
   lastUpdatedAt: number;
   season: {

@@ -630,6 +630,7 @@ export function TerritoriosGame({
           <span className="live-dot" />
           <span>{copy.season} {world?.season.number ?? 'I'}</span>
           <strong>{interpolate(copy.day, { day: seasonDay })}</strong>
+          {world?.release ? <small>v{world.release.version} · {world.release.shortSha}</small> : null}
         </div>
 
         <div className="resource-strip" aria-label={copy.factionResourcesAria}>

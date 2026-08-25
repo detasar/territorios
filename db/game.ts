@@ -11,6 +11,7 @@ import {
   type SupplyTerritory,
 } from '../src/domain/world/world';
 import type { WorldSnapshot } from '../src/contracts/game';
+import { RELEASE_METADATA } from '../src/release';
 import { campaignResolutionValues, reconcileCampaignLifecycle } from './campaigns';
 import { getRawD1 } from './index';
 import { activeSeasonRecord, ensureWorld, factionId, seasonPhaseAt } from './world-bootstrap';
@@ -576,6 +577,7 @@ export async function getWorldSnapshot(
 
   return {
     mode: 'live-world',
+    release: RELEASE_METADATA,
     serverTime: now,
     lastUpdatedAt: now,
     season: {

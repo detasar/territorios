@@ -7,6 +7,7 @@ worker_log="$runtime_state_dir/worker.log"
 worker_pid=""
 verification_port="${TERRITORIOS_RUNTIME_PORT:-3019}"
 base_url="http://localhost:$verification_port"
+expected_release_sha="$(git -C "$project_dir" rev-parse HEAD)"
 
 cleanup() {
   if [[ -n "$worker_pid" ]] && kill -0 "$worker_pid" 2>/dev/null; then
@@ -68,7 +69,7 @@ curl --fail-with-body --silent --show-error \
   --output "$province_body" \
   "$base_url/province/28"
 
-node - "$game_headers" "$game_body" "$community_body" "$province_body" <<'NODE'
+node - "$game_headers" "$game_body" "$community_body" "$province_body" "$expected_release_sha" <<'NODE'
 const fs = require('node:fs');
 
 const headers = fs.readFileSync(process.argv[2], 'utf8').toLowerCase();
@@ -76,12 +77,18 @@ const rawGame = fs.readFileSync(process.argv[3], 'utf8');
 const game = JSON.parse(rawGame);
 const community = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
 const province = fs.readFileSync(process.argv[5], 'utf8');
+const expectedReleaseSha = process.argv[6];
 
 const fail = (message) => {
   throw new Error(`Runtime smoke failed: ${message}`);
 };
 
 if (game.mode !== 'live-world') fail('world mode');
+if (game.release?.version !== '0.2.0-beta.1') fail('release version');
+if (game.release?.sha !== expectedReleaseSha) fail('release SHA');
+if (game.release?.realMoney !== false || game.release?.channel !== 'closed-beta') {
+  fail('closed-beta money boundary');
+}
 if (game.territories?.length !== 52) fail('territory count');
 if (game.battles?.length !== 8) fail('opening front count');
 if (new Set(game.battles.map((battle) => battle.targetTerritoryCode)).size !== 8) {

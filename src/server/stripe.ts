@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import Stripe from 'stripe';
+import { RELEASE_METADATA } from '../release';
 
 export class StripeConfigurationError extends Error {}
 
@@ -67,7 +68,7 @@ export function getStripeClient(): Stripe {
     throw new StripeConfigurationError('A Stripe test-mode secret key is required.');
   }
   return new Stripe(secretKey, {
-    appInfo: { name: 'Territorios', version: '0.1.0' },
+    appInfo: { name: 'Territorios', version: RELEASE_METADATA.version },
     httpClient: Stripe.createFetchHttpClient(),
     maxNetworkRetries: 2,
     timeout: 10_000,
