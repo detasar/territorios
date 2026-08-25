@@ -96,7 +96,7 @@ describe('TerritoriosGame', () => {
     expect(
       screen.getByRole('heading', { name: /la corona se decide/i }),
     ).toBeInTheDocument();
-    expect(await screen.findByRole('img', { name: /mapa de territorios/i })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: /mapa de territorios/i })).toBeInTheDocument();
     expect(screen.getByText('Madrid → Toledo')).toBeInTheDocument();
     expect(screen.getByText('42%')).toBeInTheDocument();
   });
@@ -126,7 +126,7 @@ describe('TerritoriosGame', () => {
 
   it('exposes deterministic text and time controls for browser verification', async () => {
     render(<TerritoriosGame />);
-    await screen.findByRole('img', { name: /mapa de territorios/i });
+    await screen.findByRole('group', { name: /mapa de territorios/i });
 
     expect(window.render_game_to_text).toBeTypeOf('function');
     expect(JSON.parse(window.render_game_to_text())).toMatchObject({
@@ -206,10 +206,15 @@ describe('TerritoriosGame', () => {
 
     const user = userEvent.setup();
     render(<TerritoriosGame />);
+    await user.selectOptions(await screen.findByLabelText('Rol de temporada'), 'strategist');
     await user.click(await screen.findByRole('button', { name: /representar toledo/i }));
 
     expect(await screen.findByText('Ahora representas Toledo.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /enviar 50 refuerzos/i })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/game/join',
+      expect.objectContaining({ body: expect.stringContaining('"role":"strategist"') }),
+    );
   });
 
   it('surfaces narrow join and support errors and clears pending state', async () => {

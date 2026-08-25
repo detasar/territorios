@@ -19,10 +19,15 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Added authenticated, same-origin, idempotent faction and support commands with atomic balance authorization, per-command rate limits, and generic server errors.
 - 2026-08-25: Rewound the official province geometry to RFC 7946 orientation after browser automation exposed a whole-sphere rendering defect; the 52-province map and authenticated support flow now pass screenshot/state verification.
 - 2026-08-25: Passed a clean D1 migration rehearsal (29 tables including Wrangler metadata, 14 append-only/authorization triggers), 43 tests, 91.2% statement coverage, 81.67% branch coverage, typecheck, lint, and production build.
+- 2026-08-25: Shipped a five-seat mixed council with equal-weight ranked ballots, one-seat-per-person resolution, capped supporter representation, supplied target validation, public-runoff state, and append-only council events.
+- 2026-08-25: Added all seven free roles plus one server-authoritative daily role action, deterministic rewards, daily idempotency, contribution credit, ledger entries, and private action receipts.
+- 2026-08-25: Replaced placeholder activity with live leaderboards, hash-addressed replay, fixed-vocabulary announcements, weighted content feedback, human-review reports, personal-data redaction, and private mute/block actions.
+- 2026-08-25: Added Spanish/English user-selected localization, bounded in-game notifications, quiet hours, daily alert limits, accessible tabs, keyboard navigation, and responsive 390px layouts.
+- 2026-08-25: Passed 71 unit/component/API tests, 88.38% statement and 80.45% branch coverage, zero automated WCAG 2.2 AA violations, mobile reflow, production build, and a clean D1 rehearsal with 18 append-only/authorization triggers.
 
 ## Current task
 
-- Build council elections, constrained communications/moderation, notification preferences, localization, and accessibility surfaces.
+- Build Stripe sandbox checkout, signed/idempotent webhooks, paid-effect caps, entitlements, refunds, disputes, and spending controls.
 
 ## Planned MVPs
 
@@ -34,6 +39,6 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 
 ## TODO
 
-- Add council ballots and five-seat election resolution.
-- Replace placeholder council activity with append-only game events and replay/leaderboard views.
-- Add predefined announcements, reports/moderation, bounded notifications, Spanish/English localization, and accessibility verification.
+- Integrate Stripe test-mode Checkout Sessions without storing card data.
+- Fulfill and revoke entitlements only from verified webhook events.
+- Enforce personal spend limits, purchase pause, 18+ paid-beta confirmation, refunds, and dispute freezes.

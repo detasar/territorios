@@ -2,8 +2,10 @@
 
 import { geoMercator, geoPath } from 'd3-geo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { WorldSnapshot } from '../contracts/game';
+import type { CommunitySnapshot, WorldSnapshot } from '../contracts/game';
 import { resolveBattleTick } from '../domain/combat/combat';
+import { interpolate, type AppLocale, type PlayerRole, roleLabels, uiCopy } from '../i18n/messages';
+import { CommunityHub } from './community-hub';
 
 type Position = [number, number];
 
@@ -96,11 +98,15 @@ function ResourceIcon({ kind }: { kind: 'grain' | 'shield' | 'coin' }) {
 export function TerritoriosGame() {
   const [provinces, setProvinces] = useState<ProvinceCollection | null>(null);
   const [world, setWorld] = useState<WorldSnapshot | null>(null);
+  const [community, setCommunity] = useState<CommunitySnapshot | null>(null);
   const [mapError, setMapError] = useState(false);
   const [worldError, setWorldError] = useState(false);
+  const [communityError, setCommunityError] = useState(false);
+  const [locale, setLocale] = useState<AppLocale>('es');
   const [commandMessage, setCommandMessage] = useState('');
   const [commandPending, setCommandPending] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState('45');
+  const [selectedRole, setSelectedRole] = useState<PlayerRole>('defender');
   const [supportAvailable, setSupportAvailable] = useState(0);
   const [attackerPower, setAttackerPower] = useState(7_000);
   const [siegeBp, setSiegeBp] = useState(4_200);
@@ -109,6 +115,7 @@ export function TerritoriosGame() {
     INITIAL_TICK_AT - TICK_MILLISECONDS,
   );
   const gameRootRef = useRef<HTMLDivElement>(null);
+  const copy = uiCopy[locale];
 
   const applyWorld = useCallback((worldData: WorldSnapshot) => {
     const battle = worldData.battles[0];
@@ -122,6 +129,8 @@ export function TerritoriosGame() {
       worldData.season.startsAt +
         (worldData.season.lastResolvedTick + 2) * TICK_MILLISECONDS,
     );
+    const preferredLocale = worldData.viewer?.preferences?.locale;
+    if (preferredLocale === 'es' || preferredLocale === 'en') setLocale(preferredLocale);
     setWorld(worldData);
   }, []);
 
@@ -152,6 +161,31 @@ export function TerritoriosGame() {
       current = false;
     };
   }, [applyWorld]);
+
+  useEffect(() => {
+    let current = true;
+    fetch('/api/community')
+      .then((response) => {
+        if (!response.ok) throw new Error('Community unavailable');
+        return response.json() as Promise<CommunitySnapshot>;
+      })
+      .then((snapshot) => {
+        if (snapshot.mode !== 'live-community' || !snapshot.council) {
+          throw new Error('Invalid community snapshot');
+        }
+        if (current) setCommunity(snapshot);
+      })
+      .catch(() => {
+        if (current) setCommunityError(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const resolveTicks = useCallback((milliseconds: number) => {
     if (!Number.isFinite(milliseconds) || milliseconds < 0) return;
@@ -205,6 +239,9 @@ export function TerritoriosGame() {
         mapStatus: mapError ? 'error' : provinces ? 'ready' : 'loading',
         mapProvinces: provinces?.features.length ?? 0,
         worldTerritories: world?.territories.length ?? 0,
+        communityStatus: communityError ? 'error' : community ? 'ready' : 'loading',
+        councilSeatsFilled: community?.council.seats.filter((seat) => seat.memberRef).length ?? 0,
+        locale,
         engineVersion: world?.season.engineVersion ?? null,
         coordinateSystem: 'GeoJSON EPSG:4326 projected to SVG',
       });
@@ -212,7 +249,7 @@ export function TerritoriosGame() {
       delete (window as Partial<Window>).advanceTime;
       delete (window as Partial<Window>).render_game_to_text;
     };
-  }, [attackerPower, mapError, nextTickAt, provinces, resolveTicks, selectedTerritory, siegeBp, supportAvailable, world]);
+  }, [attackerPower, community, communityError, locale, mapError, nextTickAt, provinces, resolveTicks, selectedTerritory, siegeBp, supportAvailable, world]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -310,7 +347,7 @@ export function TerritoriosGame() {
           'content-type': 'application/json',
           'idempotency-key': `join-${crypto.randomUUID()}`,
         },
-        body: JSON.stringify({ territoryCode: selectedTerritory, role: 'defender' }),
+        body: JSON.stringify({ territoryCode: selectedTerritory, role: selectedRole }),
       });
       const result = (await response.json()) as WorldSnapshot | { error: string };
       if (!response.ok || 'error' in result) {
@@ -333,20 +370,20 @@ export function TerritoriosGame() {
           <CrownMark />
           <div>
             <span className="brand-name">TERRITORIOS</span>
-            <span className="brand-subtitle">La corona se decide provincia a provincia</span>
+            <span className="brand-subtitle">{copy.brandSubtitle}</span>
           </div>
         </div>
 
         <div className="season-chip" aria-label="Temporada actual">
           <span className="live-dot" />
-          <span>Temporada {world?.season.number ?? 'I'}</span>
-          <strong>Día {seasonDay} de 28</strong>
+          <span>{copy.season} {world?.season.number ?? 'I'}</span>
+          <strong>{interpolate(copy.day, { day: seasonDay })}</strong>
         </div>
 
         <div className="resource-strip" aria-label="Recursos de la facción">
-          <div className="resource-item"><ResourceIcon kind="grain" /><span><strong>1.240</strong><small>Suministros</small></span></div>
-          <div className="resource-item"><ResourceIcon kind="shield" /><span><strong>{formatNumber(supportAvailable)}</strong><small>Refuerzos</small></span></div>
-          <div className="resource-item resource-coins"><ResourceIcon kind="coin" /><span><strong>{formatNumber(world?.viewer?.wallet?.paidSupport ?? 0)}</strong><small>Apoyo adquirido</small></span></div>
+          <div className="resource-item"><ResourceIcon kind="grain" /><span><strong>1.240</strong><small>{copy.supplies}</small></span></div>
+          <div className="resource-item"><ResourceIcon kind="shield" /><span><strong>{formatNumber(supportAvailable)}</strong><small>{copy.reinforcements}</small></span></div>
+          <div className="resource-item resource-coins"><ResourceIcon kind="coin" /><span><strong>{formatNumber(world?.viewer?.wallet?.paidSupport ?? 0)}</strong><small>{copy.paidSupport}</small></span></div>
           <button className="avatar" aria-label="Abrir perfil">{world?.viewer?.displayName.slice(0, 2).toUpperCase() ?? 'TC'}</button>
         </div>
       </header>
@@ -355,23 +392,23 @@ export function TerritoriosGame() {
         <section className="map-panel" aria-labelledby="map-heading">
           <div className="map-heading-row">
             <div>
-              <span className="eyebrow">Frente central · Mundo persistente</span>
-              <h1 id="map-heading">La corona se decide aquí</h1>
+              <span className="eyebrow">{copy.front}</span>
+              <h1 id="map-heading">{copy.crownHeading}</h1>
             </div>
             <div className="map-actions">
-              <button className="icon-button" aria-label="Centrar mapa"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" /></svg></button>
-              <button className="icon-button" aria-label="Mostrar ayuda del mapa">?</button>
+              <button className="icon-button" aria-label={copy.centerMap}><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" /></svg></button>
+              <button className="icon-button" aria-label={copy.mapHelp}>?</button>
             </div>
           </div>
 
           <div className="map-stage" id="game-map">
             <div className="map-grid" aria-hidden="true" />
             {mapError ? (
-              <div className="map-state" role="alert">No se pudo cargar el mapa oficial.</div>
+              <div className="map-state" role="alert">{copy.mapError}</div>
             ) : mapPaths.length === 0 ? (
-              <div className="map-state" role="status">Trazando las 52 provincias…</div>
+              <div className="map-state" role="status">{copy.mapLoading}</div>
             ) : (
-              <svg className="spain-map" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label="Mapa de Territorios con las 52 provincias de España">
+              <svg className="spain-map" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="group" aria-label={copy.mapAria}>
                 <defs>
                   <filter id="selected-glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#ffb45d" floodOpacity="0.9" /></filter>
                   <pattern id="siege-lines" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#df5b50" /><line x1="0" y1="0" x2="0" y2="8" stroke="#f8c38a" strokeWidth="2" opacity=".55" /></pattern>
@@ -386,7 +423,7 @@ export function TerritoriosGame() {
                         d={path}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Seleccionar ${feature.properties.name}`}
+                        aria-label={interpolate(copy.selectProvince, { name: feature.properties.name })}
                         aria-pressed={isSelected}
                         data-faction={
                           world?.territories.find((territory) => territory.code === code)?.siegeBp
@@ -411,52 +448,68 @@ export function TerritoriosGame() {
             <div className="front-label front-madrid" aria-hidden="true"><span className="crest crest-coral">M</span><span>Madrid<strong>Capital</strong></span></div>
             <div className="front-label front-toledo" aria-hidden="true"><span className="battle-pulse" /><span>Toledo<strong>En asedio</strong></span></div>
             <div className="map-legend" aria-label="Leyenda del mapa">
-              <span><i className="legend-coral" />Tu facción</span><span><i className="legend-teal" />Casa del Mar</span><span><i className="legend-gold" />Liga Dorada</span><span><i className="legend-siege" />En disputa</span>
+              <span><i className="legend-coral" />{copy.yourFaction}</span><span><i className="legend-teal" />{copy.seaHouse}</span><span><i className="legend-gold" />{copy.goldenLeague}</span><span><i className="legend-siege" />{copy.contested}</span>
             </div>
           </div>
-          <p className="map-attribution">Geometría oficial CNIG · BDLJE CC BY 4.0 · Pulsa <kbd>F</kbd> para pantalla completa</p>
+          <p className="map-attribution">{copy.mapAttribution}</p>
         </section>
 
-        <aside className="command-panel" aria-label="Centro de mando">
-          {worldError ? <div className="command-alert" role="alert">El mundo persistente no está disponible.</div> : null}
+        <aside className="command-panel" aria-label={copy.commandCenter}>
+          {worldError ? <div className="command-alert" role="alert">{copy.worldError}</div> : null}
           <section className="province-card">
-            <div className="card-topline"><span className={isBattleTarget ? 'status-siege' : 'status-owned'}><i />{isBattleTarget ? 'Asedio activo' : isOwnedByViewer ? 'Bajo tu control' : 'Territorio estable'}</span><button aria-label="Más opciones de provincia">•••</button></div>
-            <div className="province-title-row"><span className={`large-crest ${isBattleTarget ? 'crest-siege' : 'crest-coral'}`}>{selectedName.slice(0, 1)}</span><div><span className="eyebrow">Provincia {selectedTerritory}</span><h2>{selectedName}</h2></div></div>
+            <div className="card-topline"><span className={isBattleTarget ? 'status-siege' : 'status-owned'}><i />{isBattleTarget ? copy.siegeActive : isOwnedByViewer ? copy.underControl : copy.stable}</span><button aria-label="Más opciones de provincia">•••</button></div>
+            <div className="province-title-row"><span className={`large-crest ${isBattleTarget ? 'crest-siege' : 'crest-coral'}`}>{selectedName.slice(0, 1)}</span><div><span className="eyebrow">{copy.province} {selectedTerritory}</span><h2>{selectedName}</h2></div></div>
             {!isBattleTarget ? (
-              <div className="owned-summary"><strong>{isOwnedByViewer ? 'Capital de tu facción' : selectedState?.ownerFactionName ?? 'Provincia neutral'}</strong><p>Fortificada y conectada. Genera suministros en el próximo reparto horario.</p><dl><div><dt>Defensa</dt><dd>{formatNumber((selectedState?.freeGarrison ?? 8_400) + (selectedState?.paidGarrison ?? 0))}</dd></div><div><dt>Índice de suministro</dt><dd>{selectedState?.supply ?? 1_000}</dd></div></dl></div>
+              <div className="owned-summary"><strong>{isOwnedByViewer ? copy.factionCapital : selectedState?.ownerFactionName ?? copy.neutralProvince}</strong><p>{copy.fortified}</p><dl><div><dt>{copy.defense}</dt><dd>{formatNumber((selectedState?.freeGarrison ?? 8_400) + (selectedState?.paidGarrison ?? 0))}</dd></div><div><dt>{copy.supplyIndex}</dt><dd>{selectedState?.supply ?? 1_000}</dd></div></dl></div>
             ) : (
               <>
                 <div className="battle-route"><span className="route-text">{activeBattle?.originName ?? 'Madrid'} → {activeBattle?.targetName ?? 'Toledo'}</span></div>
-                <div className="siege-progress-heading"><span>Progreso del asedio</span><strong>{Math.floor(siegeBp / 100)}%</strong></div>
-                <div className="siege-progress" role="progressbar" aria-label="Progreso del asedio" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(siegeBp / 100)}><span style={{ width: `${siegeBp / 100}%` }} /></div>
-                <div className="tick-row"><span>Próximo cálculo</span><strong>{formatCountdown(countdown)}</strong></div>
-                <div className="army-comparison"><div><span className="army-dot attacker-dot" /><span>{formatNumber(attackerPower)} fuerza atacante</span><strong>{formatNumber(attackerPower)}</strong></div><div><span className="army-dot defender-dot" /><span>{formatNumber(selectedState?.freeGarrison ?? 3_000)} fuerza defensora</span><strong>{formatNumber(selectedState?.freeGarrison ?? 3_000)}</strong></div></div>
+                <div className="siege-progress-heading"><span>{copy.siegeProgress}</span><strong>{Math.floor(siegeBp / 100)}%</strong></div>
+                <div className="siege-progress" role="progressbar" aria-label={copy.siegeProgress} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(siegeBp / 100)}><span style={{ width: `${siegeBp / 100}%` }} /></div>
+                <div className="tick-row"><span>{copy.nextCalculation}</span><strong>{formatCountdown(countdown)}</strong></div>
+                <div className="army-comparison"><div><span className="army-dot attacker-dot" /><span>{formatNumber(attackerPower)} {copy.attackPower}</span><strong>{formatNumber(attackerPower)}</strong></div><div><span className="army-dot defender-dot" /><span>{formatNumber(selectedState?.freeGarrison ?? 3_000)} {copy.defensePower}</span><strong>{formatNumber(selectedState?.freeGarrison ?? 3_000)}</strong></div></div>
               </>
             )}
           </section>
 
           <section className="support-card">
-            <div className="support-heading"><div><span className="eyebrow">Orden inmediata</span><h3>Enviar refuerzos</h3></div><span className="support-balance">{formatNumber(supportAvailable)} disponibles</span></div>
-            <p>Refuerza el frente con unidades obtenidas durante la temporada.</p>
+            <div className="support-heading"><div><span className="eyebrow">{copy.immediateOrder}</span><h3>{copy.sendSupportTitle}</h3></div><span className="support-balance">{interpolate(copy.supportAvailable, { count: formatNumber(supportAvailable) })}</span></div>
+            <p>{copy.supportDescription}</p>
             {!world?.viewer ? (
-              <a className="primary-action" href="/signin-with-chatgpt?return_to=%2F">Iniciar sesión con ChatGPT</a>
+              <a className="primary-action" href="/signin-with-chatgpt?return_to=%2F">{copy.signIn}</a>
             ) : !world.viewer.membership ? (
-              <button className="primary-action" type="button" disabled={commandPending} onClick={joinSelectedFaction}>Representar {selectedName}</button>
+              <div className="join-controls">
+                <label htmlFor="role-choice">{copy.chooseRole}</label>
+                <select id="role-choice" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as PlayerRole)} disabled={commandPending}>
+                  {(Object.keys(roleLabels[locale]) as PlayerRole[]).map((role) => <option key={role} value={role}>{roleLabels[locale][role]}</option>)}
+                </select>
+                <button className="primary-action" type="button" disabled={commandPending} onClick={joinSelectedFaction}>{interpolate(copy.represent, { name: selectedName })}</button>
+              </div>
             ) : (
-              <button className="primary-action" type="button" disabled={supportAvailable < 50 || commandPending} onClick={sendSupport} aria-label="Enviar 50 refuerzos"><span>{commandPending ? 'Registrando…' : 'Enviar 50 refuerzos'}</span><span className="action-cost"><ResourceIcon kind="shield" />50</span></button>
+              <button className="primary-action" type="button" disabled={supportAvailable < 50 || commandPending} onClick={sendSupport} aria-label={copy.sendFifty}><span>{commandPending ? copy.registering : copy.sendFifty}</span><span className="action-cost"><ResourceIcon kind="shield" />50</span></button>
             )}
             {commandMessage ? <p className="command-message" role="status">{commandMessage}</p> : null}
-            <div className="fair-play-note"><ResourceIcon kind="shield" /><span><strong>Juego limpio activo</strong>Los apoyos de pago nunca superan el 20% del poder total.</span></div>
+            <div className="fair-play-note"><ResourceIcon kind="shield" /><span><strong>{copy.fairPlay}</strong>{copy.paidCap}</span></div>
           </section>
 
           <section className="activity-card">
-            <div className="section-heading"><h3>Consejo de guerra</h3><button>Ver todo</button></div>
-            <ol className="activity-list"><li><span className="mini-avatar avatar-one">AR</span><p><strong>Ana R.</strong> movilizó 100 unidades <time>hace 4 min</time></p></li><li><span className="mini-avatar avatar-two">JM</span><p><strong>J. Molina</strong> marcó Toledo como prioridad <time>hace 11 min</time></p></li></ol>
+            <div className="section-heading"><h3>{copy.recentEvents}</h3><a href="#community-hub">{copy.activity}</a></div>
+            {world?.recentEvents.length ? <ol className="activity-list">{world.recentEvents.slice(0, 2).map((event) => <li key={event.sequence}><span className="mini-avatar avatar-one">#{event.sequence}</span><p><strong>{event.eventType.replaceAll('_', ' ')}</strong><time>{event.payloadHash.slice(0, 12)}</time></p></li>)}</ol> : <p className="empty-state">{copy.noEvents}</p>}
           </section>
         </aside>
       </main>
 
-      <nav className="mobile-nav" aria-label="Navegación del juego"><a href="#game-map" aria-current="page">Mapa</a><button>Consejo</button><button>Clasificación</button></nav>
+      <CommunityHub
+        community={community}
+        communityError={communityError}
+        locale={locale}
+        onCommunity={setCommunity}
+        onLocale={setLocale}
+        onWorld={applyWorld}
+        world={world}
+      />
+
+      <nav className="mobile-nav" aria-label="Navegación del juego"><a href="#game-map" aria-current="page">{copy.map}</a><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('territorios:tab', { detail: 'council' }))}>{copy.council}</button><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('territorios:tab', { detail: 'leaderboard' }))}>{copy.leaderboard}</button></nav>
     </div>
   );
 }
