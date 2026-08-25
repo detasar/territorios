@@ -1,6 +1,7 @@
 import { castCouncilBallot, getCommunitySnapshot } from '../db/community';
+import { recordBetaConsent } from '../db/beta';
 import { getRawD1 } from '../db/index';
-import { joinFaction, reconcileWorld } from '../db/game';
+import { joinFaction, reconcileWorld, upsertUser } from '../db/game';
 import {
   activeSeasonRecord,
   campaignId,
@@ -43,6 +44,8 @@ async function verifyCampaignCycle() {
   const openingCampaignId = campaignId(firstSeason.id, COUNCIL_TERRITORY, 1);
   const openingBattleId = `battle-${openingCampaignId}`;
 
+  await upsertUser(TEST_USER, BASE_TIME);
+  await recordBetaConsent(TEST_USER.userId, 'campaign-cycle-consent', BASE_TIME);
   await joinFaction(
     TEST_USER,
     COUNCIL_TERRITORY,
@@ -283,7 +286,9 @@ async function assertCaptured(input: {
 }
 
 async function closeSeasonAndOpenNext(seasonId: string, endsAt: number) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  // A real day-one season has 672 hourly ticks; reconciliation processes at
+  // most 48 per request, so 16 bounded passes cover the full season plus reset.
+  for (let attempt = 0; attempt < 16; attempt += 1) {
     await reconcileWorld(endsAt + 1);
     const active = await activeSeasonRecord();
     if (active.id !== seasonId) {
