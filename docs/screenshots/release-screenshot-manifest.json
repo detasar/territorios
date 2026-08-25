@@ -1,0 +1,63 @@
+{
+  "format": "territorios-release-screenshots/v1",
+  "version": "v0.2.0-beta.1",
+  "seed": "fresh-isolated-d1-per-player-perspective",
+  "locale": "es",
+  "captures": [
+    {
+      "file": "after-v0.2-onboarding-1440.png",
+      "viewport": "1440x1000",
+      "state": "authenticated-before-consent-with-focus-provinces"
+    },
+    {
+      "file": "after-v0.2-support-1440.png",
+      "viewport": "1440x1000",
+      "state": "joined-attacker-after-first-free-support"
+    },
+    {
+      "file": "after-v0.2-council-768.png",
+      "viewport": "768x1024",
+      "state": "joined-player-council-and-campaign-cycle"
+    },
+    {
+      "file": "after-v0.2-replay-768.png",
+      "viewport": "768x1024",
+      "state": "verifiable-replay-after-first-support"
+    },
+    {
+      "file": "after-v0.2-mobile-390.png",
+      "viewport": "390x844",
+      "state": "joined-player-mobile-beta-notice-and-next-action"
+    },
+    {
+      "file": "after-v0.2-mobile-map-390.png",
+      "viewport": "390x844",
+      "state": "joined-player-mobile-map-and-command"
+    },
+    {
+      "file": "after-v0.2-map-help-1440.png",
+      "viewport": "1440x1000",
+      "state": "keyboard-and-map-help-dialog"
+    },
+    {
+      "file": "after-v0.2-zoom-200-1440.png",
+      "viewport": "1440x1000",
+      "state": "two-hundred-percent-zoom-core-support-action"
+    },
+    {
+      "file": "after-v0.2-privacy-1440.png",
+      "viewport": "1440x1000",
+      "state": "closed-beta-privacy-support-and-rights"
+    },
+    {
+      "file": "after-v0.2-grayscale-1440.png",
+      "viewport": "1440x1000",
+      "state": "grayscale-color-independent-map-states"
+    },
+    {
+      "file": "after-v0.2-defender-support-1440.png",
+      "viewport": "1440x1000",
+      "state": "joined-defender-after-first-free-support"
+    }
+  ]
+}

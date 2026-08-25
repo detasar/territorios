@@ -16,15 +16,15 @@ Bu runbook şunları yapmaz:
 
 | Rol | Sorumluluk | Ad/iletişim |
 | --- | --- | --- |
-| Release owner | Son karar, freeze, sharing | `TBD` |
-| Engineering owner | Kod/schema/test | `TBD` |
-| D1/operations owner | Backup, binding, restore | `TBD` |
-| Product/UX owner | Task/human thresholds | `TBD` |
-| Privacy contact | Notice, rights requests | `TBD` |
-| Moderator/on-call | Reports/incidents | `TBD` |
-| QA owner | Evidence manifest | `TBD` |
+| Release owner | Son karar, freeze, sharing | Davut Emre — in-app fixed request route |
+| Engineering owner | Kod/schema/test | Davut Emre — GitHub repository |
+| D1/operations owner | Backup, binding, restore | Davut Emre — Sites owner console |
+| Product/UX owner | Task/human thresholds | Davut Emre — beta operations queue |
+| Privacy contact | Notice, rights requests | Davut Emre — in-app `privacy-access` / `privacy-delete` |
+| Moderator/on-call | Reports/incidents | Davut Emre — in-app moderation/security queue |
+| QA owner | Evidence manifest | Davut Emre — release checklist |
 
-`TBD` kalan owner ile closed beta açılmaz.
+Bu atamalar uygulama ve runbook üzerinde tek sorumlu olarak yayınlanır; katılımcı davetinden önce insan imzası ve izlenen queue doğrulaması gerekir.
 
 ## 3. Environment’lar
 

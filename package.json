@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "bash scripts/verify-browser-e2e.sh",
     "test:e2e:direct": "playwright test",
+    "screenshots:release": "bash scripts/capture-release-screenshots.sh",
     "verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "verify:migration": "bash scripts/verify-d1-migration.sh",
     "verify:campaign": "bash scripts/verify-campaign-cycle.sh",

@@ -4,23 +4,20 @@ Bu klasör, Territorios’u mevcut teknik betadan **release öncesi, gerçek par
 
 ## Kaynak gerçekliği
 
-- İncelenen kaynak SHA: `91b433224ed8d66f0a26b5b75b8220703d3f7217`
-- Mevcut doğrulanmış motor: `combat-2.0.0`
-- Mevcut otomatik kanıt: 152 test, 29 D1 tablosu, 19 trigger, 8 başlangıç cephesi, 4/4 Playwright/Axe akışı ve başarılı GitHub release pipeline
-- Mevcut yayın: owner-only ChatGPT Sites beta
-- Ödeme sınırı: Stripe test-mode entegrasyonu var; kapalı beta final release’inde gerçek ödeme ve canlı Stripe anahtarı yok
+- Release adayı: `v0.2.0-beta.1`; authoritative SHA, immutable tag ve Sites deployment kaydında aynı olmalıdır.
+- Doğrulanmış motor: `combat-2.0.0`.
+- Güncel otomatik kanıt: 186 test, coverage eşiği, 29 D1 tablosu, 19 trigger, 52 territory, 8 başlangıç cephesi, 4/4 Playwright/Axe akışı ve day-one concurrent bootstrap.
+- Rollout: önceki owner-only site/D1 değişmeden rollback noktası olarak saklanır; final aday ayrı ve temiz owner-only Sites/D1 projesine gider.
+- Ödeme sınırı: mağaza yoktur; payment snapshot/checkout/control/webhook uçları fail-closed `404` döner; deployment’ta Stripe anahtarı yoktur.
 
 Bu paket, eski `v0.1.0` etiketini release kaynağı olarak kabul etmez. Final beta adayı yeni bir sürüm ve tek bir SHA ile dondurulmalıdır.
 
-## Şu anda kapalı beta release’ini bloke eden başlıklar
+## Kalan dış kapılar
 
-1. **Release kimliği:** `main`, eski release etiketi ve owner-only deployment aynı sürümü göstermiyor.
-2. **D1 geçişi:** güncel şema değiştirilmiş `0000` migration’ına dayanıyor; mevcut remote D1 için güvenli yükseltme veya ayrı temiz beta D1 gerekir.
-3. **Sezon başlangıcı:** boş D1’de ilk sezon `now - 11 days` ile başlıyor; final beta gerçek ilk günden başlamalı.
-4. **Harita semantiği:** 52 fraksiyon yalnız beş tekrarlanan renk kullanıyor; legend’da veri modelinde gerçek karşılığı olmayan etiketler var.
-5. **Kaynak anlamı:** üst çubuktaki “fraksiyon kaynakları” seçili ilin supply değerini gösteriyor; seçili yabancı ilde semantik bozuluyor.
-6. **İnsan kanıtı:** otomasyon ve üç oyunculu QA güçlü olsa da 8–15 gerçek katılımcılı kullanılabilirlik ve eğlence kapısı hâlâ çalıştırılmadı.
-7. **Operasyon:** controller/support/privacy kimliği, moderasyon SLA’sı, incident sahibi, beta metrik ihracı ve rollback provası tamamlanmalı.
+1. **İnsan kanıtı:** 8–15 gerçek yetişkinle 60 dakikalık moderasyonlu oturum ve D7 kullanımı `NOT_RUN`.
+2. **İmza:** release, QA, privacy ve moderation owner imzaları insan tarafından tamamlanmalı.
+3. **Paylaşım:** owner-only erişim bu iki kapı geçmeden katılımcı veya public erişime çevrilmez.
+4. **Hukuk:** canlı para ayrı release’tir ve bu aday için otomatik `NO-GO`dur.
 
 ## Belge seti
 
@@ -34,6 +31,10 @@ Bu paket, eski `v0.1.0` etiketini release kaynağı olarak kabul etmez. Final be
 | [HUMAN_BETA_PROTOCOL.md](HUMAN_BETA_PROTOCOL.md) | 8–15 kişiyle moderasyonlu ve 7 günlük gerçek kullanım protokolü |
 | [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) | D1, deploy, smoke, paylaşım ve rollback adımları |
 | [GO_NO_GO_CHECKLIST.md](GO_NO_GO_CHECKLIST.md) | Final karar ve imza tablosu |
+| [PARTICIPANT_GUIDE.md](PARTICIPANT_GUIDE.md) | Katılımcının ilk üç dakikası, harita, campaign ve destek yolu |
+| [COHORT_ALLOCATION.md](COHORT_ALLOCATION.md) | PII içermeyen P01–P15 odak-province dağılımı |
+| [OPERATIONS_AND_MODERATION.md](OPERATIONS_AND_MODERATION.md) | SLA, privacy, moderation, incident ve rollback sorumlulukları |
+| [METRICS_DICTIONARY.md](METRICS_DICTIONARY.md) | İçeriksiz aggregate beta metrik sözlüğü |
 
 ## Yürütme sırası
 
