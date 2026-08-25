@@ -184,5 +184,24 @@ describe('PaymentPanel', () => {
     expect(await screen.findByText(/real cards are not charged/i)).toBeInTheDocument();
     expect(screen.getByText(/cannot be transferred or redeemed for money/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open sandbox checkout/i })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /Terms, Refund Policy/i })).toHaveAttribute(
+      'href',
+      '/legal/terms?lang=en',
+    );
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/legal/privacy?lang=en');
+  });
+
+  it('explains invalid cross-field spending limits in the selected language without a request', async () => {
+    const fetchMock = vi.mocked(fetch);
+    render(<PaymentPanel catalog={catalog} locale="en" hasMembership />);
+
+    fireEvent.change(await screen.findByLabelText(/Daily limit/i), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText(/Season limit/i), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save limits/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Daily limit cannot be higher than the season limit.',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

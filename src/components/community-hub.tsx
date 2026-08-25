@@ -7,7 +7,15 @@ import {
   translateAnnouncement,
   type AnnouncementKey,
 } from '../domain/community/moderation';
-import { interpolate, type AppLocale, type PlayerRole, roleLabels, uiCopy } from '../i18n/messages';
+import {
+  eventSummary,
+  interpolate,
+  type AppLocale,
+  type PlayerRole,
+  roleActionDescriptions,
+  roleLabels,
+  uiCopy,
+} from '../i18n/messages';
 import { PaymentPanel } from './payment-panel';
 
 type CommunityTab = 'leaderboard' | 'council' | 'activity' | 'store' | 'settings';
@@ -29,6 +37,38 @@ const reportReasons = [
   'political-propaganda',
   'other',
 ] as const;
+
+const reportReasonLabels: Record<AppLocale, Record<(typeof reportReasons)[number], string>> = {
+  es: {
+    'illegal-content': 'Contenido ilegal',
+    'hate-harassment': 'Odio o acoso',
+    threat: 'Amenaza',
+    'personal-information': 'Información personal',
+    'fraud-impersonation': 'Fraude o suplantación',
+    'political-propaganda': 'Propaganda política',
+    other: 'Otro',
+  },
+  en: {
+    'illegal-content': 'Illegal content',
+    'hate-harassment': 'Hate or harassment',
+    threat: 'Threat',
+    'personal-information': 'Personal information',
+    'fraud-impersonation': 'Fraud or impersonation',
+    'political-propaganda': 'Political propaganda',
+    other: 'Other',
+  },
+};
+
+const notificationLabels: Record<AppLocale, Record<string, string>> = {
+  es: {
+    'council-announcement': 'Anuncio del consejo',
+    'role-action': 'Acción de rol',
+  },
+  en: {
+    'council-announcement': 'Council announcement',
+    'role-action': 'Role action',
+  },
+};
 
 function roleLabelsFor(locale: AppLocale, role: string): string {
   return role in roleLabels[locale] ? roleLabels[locale][role as PlayerRole] : role;
@@ -54,11 +94,14 @@ export function CommunityHub({
   const copy = uiCopy[locale];
   const [activeTab, setActiveTab] = useState<CommunityTab>('leaderboard');
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState<{ locale: AppLocale; text: string }>({ locale, text: '' });
+  const message = feedback.locale === locale ? feedback.text : '';
+  const setMessage = (text: string) => setFeedback({ locale, text });
   const [candidate, setCandidate] = useState('');
   const [target, setTarget] = useState('');
   const [announcementKey, setAnnouncementKey] = useState<AnnouncementKey>('DEFEND_HERE');
   const [reportReason, setReportReason] = useState<(typeof reportReasons)[number]>('other');
+  const [openModerationAnnouncementId, setOpenModerationAnnouncementId] = useState<string | null>(null);
   const preferences = world?.viewer?.preferences;
   const [quietStartOverride, setQuietStart] = useState<number | null>(null);
   const [quietEndOverride, setQuietEnd] = useState<number | null>(null);
@@ -84,7 +127,7 @@ export function CommunityHub({
   }, []);
 
   const targetName = useMemo(
-    () => community?.council.validTargets.find(
+    () => community?.council.campaign?.targetTerritoryName ?? community?.council.validTargets.find(
       (entry) => entry.code === community.council.targetResult.winner,
     )?.name,
     [community],
@@ -110,7 +153,7 @@ export function CommunityHub({
       });
       const result = await response.json() as CommunitySnapshot | { error?: string };
       if (!response.ok || 'error' in result) {
-        throw new Error('error' in result && result.error ? result.error : copy.commandFailed);
+        throw new Error('error' in result && result.error && locale === 'es' ? result.error : copy.commandFailed);
       }
       if (expectSnapshot && 'mode' in result && result.mode === 'live-community') onCommunity(result);
       if (refreshWorld && onWorld) {
@@ -146,14 +189,14 @@ export function CommunityHub({
   const publish = () => community?.territory && runCommand(
     '/api/community/announcement',
     { territoryCode: community.territory.code, messageKey: announcementKey },
-    copy.saved,
+    copy.announcementPublishedSuccess,
   );
 
   const tabs: Array<{ id: CommunityTab; label: string }> = [
     { id: 'leaderboard', label: copy.leaderboard },
     { id: 'council', label: copy.council },
     { id: 'activity', label: copy.activity },
-    { id: 'store', label: locale === 'es' ? 'Tienda sandbox' : 'Sandbox store' },
+    { id: 'store', label: copy.store },
     { id: 'settings', label: copy.settings },
   ];
   const moveTabFocus = (current: CommunityTab, key: string) => {
@@ -176,7 +219,7 @@ export function CommunityHub({
           <span className="eyebrow">{copy.communitySubtitle}</span>
           <h2 id="community-heading">{copy.communityTitle}</h2>
         </div>
-        <span className="community-live"><i />D1 · LIVE</span>
+        <span className="community-live"><i />D1 · {copy.live}</span>
       </div>
       {communityError ? <p className="command-alert" role="alert">{copy.communityUnavailable}</p> : null}
       <div className="community-tabs" role="tablist" aria-label={copy.communityTitle}>
@@ -230,7 +273,7 @@ export function CommunityHub({
                 <ol className="ranking-list player-ranking">
                   {world.playerLeaderboard.slice(0, 8).map((player, index) => (
                     <li key={`${player.player}-${index}`}>
-                      <span><strong>{player.player}</strong><small>{player.role} · {player.factionName}</small></span>
+                      <span><strong>{player.player}</strong><small>{roleLabelsFor(locale, player.role)} · {player.factionName}</small></span>
                       <b>{player.contributionScore}</b>
                     </li>
                   ))}
@@ -244,12 +287,30 @@ export function CommunityHub({
           <div className="council-layout">
             <section>
               <h3>{copy.mixedCouncil}</h3>
+              {community?.council.term ? (
+                <div className="governance-clock">
+                  <strong>{interpolate(copy.councilTerm, { number: community.council.term.number })}</strong>
+                  <span>{interpolate(copy.councilTermEnds, { time: new Date(community.council.term.endsAt).toLocaleString(locale) })}</span>
+                </div>
+              ) : null}
+              {community?.council.campaign ? (
+                <div className="governance-clock">
+                  <strong>{interpolate(copy.campaignCycle, { number: community.council.campaign.cycleNumber })}</strong>
+                  <span>{copy[{
+                    planning: 'campaignPlanning',
+                    mobilizing: 'campaignMobilizing',
+                    active: 'campaignActive',
+                    cooldown: 'campaignCooldown',
+                    resolved: 'campaignResolved',
+                  }[community.council.campaign.phase] as keyof typeof copy]}</span>
+                </div>
+              ) : null}
               <ul className="seat-grid">
                 {(community?.council.seats ?? []).map((seat) => (
                   <li key={seat.seatKind}>
                     <span>{copy[seatCopy[seat.seatKind]]}</span>
                     <strong>{seat.label ?? copy.vacant}</strong>
-                    <small>{seat.role ?? '—'}</small>
+                    <small>{seat.role ? roleLabelsFor(locale, seat.role) : '—'}</small>
                   </li>
                 ))}
               </ul>
@@ -258,6 +319,7 @@ export function CommunityHub({
                   <span>{copy.roleAction}</span>
                   <strong>{roleLabelsFor(locale, community.viewer.role)}</strong>
                   <small>
+                    {roleActionDescriptions[locale][community.viewer.role as PlayerRole] ?? ''}{' '}
                     {community.viewer.roleActionAvailable
                       ? copy.roleActionReady
                       : interpolate(copy.roleActionUsed, {
@@ -272,7 +334,7 @@ export function CommunityHub({
                     onClick={() => runCommand(
                       '/api/community/role-action',
                       { territoryCode: community.territory!.code },
-                      copy.saved,
+                      copy.roleActionSuccess,
                       true,
                       true,
                     )}
@@ -293,7 +355,7 @@ export function CommunityHub({
                     >
                       {community.council.candidates.map((entry) => (
                         <option key={entry.candidateRef} value={entry.candidateRef}>
-                          {entry.label} · {entry.role} · {entry.contributionScore}
+                          {entry.label} · {roleLabelsFor(locale, entry.role)} · {entry.contributionScore}
                         </option>
                       ))}
                     </select>
@@ -305,7 +367,7 @@ export function CommunityHub({
                       {community.council.representativeBallotCast ? copy.voteRecorded : copy.castVote}
                     </button>
                   </div>
-                  {community.viewer.isCouncilMember ? (
+                  {community.council.canVoteTarget ? (
                     <div className="field-group">
                       <label htmlFor="target-choice">{copy.chooseTarget}</label>
                       <select
@@ -315,7 +377,7 @@ export function CommunityHub({
                         disabled={community.council.targetBallotCast || pending}
                       >
                         {community.council.validTargets.map((entry) => (
-                          <option key={entry.code} value={entry.code}>{entry.name} · {entry.routeKind}</option>
+                          <option key={entry.code} value={entry.code}>{entry.name} · {entry.routeKind === 'sea' ? copy.seaRoute : copy.landRoute}</option>
                         ))}
                       </select>
                       <button
@@ -368,7 +430,7 @@ export function CommunityHub({
                             onClick={() => runCommand('/api/community/announcement/vote', {
                               announcementId: announcement.id,
                               direction: 'up',
-                            }, copy.saved)}
+                            }, copy.announcementVoteSuccess)}
                           >↑ {copy.helpful} {announcement.upvotes}</button>
                           <button
                             type="button"
@@ -376,10 +438,19 @@ export function CommunityHub({
                             onClick={() => runCommand('/api/community/announcement/vote', {
                               announcementId: announcement.id,
                               direction: 'down',
-                            }, copy.saved)}
+                            }, copy.announcementVoteSuccess)}
                           >↓ {copy.unhelpful} {announcement.downvotes}</button>
                           {community.viewer && !isOwnAnnouncement ? (
-                            <details>
+                            <details
+                              open={openModerationAnnouncementId === announcement.id}
+                              onToggle={(event) => {
+                                const isOpen = event.currentTarget.open;
+                                setOpenModerationAnnouncementId((current) => {
+                                  if (isOpen) return announcement.id;
+                                  return current === announcement.id ? null : current;
+                                });
+                              }}
+                            >
                               <summary>{copy.report}</summary>
                               <label htmlFor={`reason-${announcement.id}`}>{copy.reportReason}</label>
                               <select
@@ -387,21 +458,21 @@ export function CommunityHub({
                                 value={reportReason}
                                 onChange={(event) => setReportReason(event.target.value as typeof reportReason)}
                               >
-                                {reportReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+                                {reportReasons.map((reason) => <option key={reason} value={reason}>{reportReasonLabels[locale][reason]}</option>)}
                               </select>
                               <button type="button" onClick={() => runCommand('/api/community/report', {
                                 targetType: 'announcement',
                                 targetId: announcement.id,
                                 reason: reportReason,
-                              }, copy.saved, false)}>{copy.sendReport}</button>
+                              }, copy.reportSuccess, false)}>{copy.sendReport}</button>
                               <button type="button" onClick={() => runCommand('/api/community/safety', {
                                 targetRef: announcement.authorRef,
                                 action: 'mute',
-                              }, copy.saved)}>{copy.mute}</button>
+                              }, copy.muteSuccess)}>{copy.mute}</button>
                               <button type="button" onClick={() => runCommand('/api/community/safety', {
                                 targetRef: announcement.authorRef,
                                 action: 'block',
-                              }, copy.saved)}>{copy.block}</button>
+                              }, copy.blockSuccess)}>{copy.block}</button>
                             </details>
                           ) : null}
                         </div>
@@ -417,12 +488,16 @@ export function CommunityHub({
         {activeTab === 'activity' ? (
           <section>
             <h3>{copy.replayTitle}</h3>
+            <p className="replay-intro">{copy.replayIntro}</p>
             {world?.recentEvents.length ? (
               <ol className="replay-list">
                 {world.recentEvents.map((event) => (
                   <li key={event.sequence}>
-                    <span><strong>{event.eventType.replaceAll('_', ' ')}</strong><small>#{event.sequence} · {new Date(event.createdAt).toLocaleString(locale)}</small></span>
-                    <code>{copy.eventHash}: {event.payloadHash.slice(0, 16)}</code>
+                    <span><strong>{eventSummary(locale, event.summaryKey, event.summaryArgs)}</strong><small>#{event.sequence} · {new Date(event.createdAt).toLocaleString(locale)}</small></span>
+                    <details className="replay-integrity">
+                      <summary>{copy.verifyIntegrity}</summary>
+                      <code>{copy.eventHash}: {event.payloadHash}</code>
+                    </details>
                   </li>
                 ))}
               </ol>
@@ -444,7 +519,10 @@ export function CommunityHub({
               <h3>{copy.settings}</h3>
               <div className="field-group">
                 <label htmlFor="locale-setting">{copy.language}</label>
-                <select id="locale-setting" value={locale} onChange={(event) => onLocale(event.target.value as AppLocale)}>
+                <select id="locale-setting" value={locale} onChange={(event) => {
+                  setMessage('');
+                  onLocale(event.target.value as AppLocale);
+                }}>
                   <option value="es">Español</option>
                   <option value="en">English</option>
                 </select>
@@ -470,7 +548,7 @@ export function CommunityHub({
               {community?.notifications.length ? (
                 <ol className="notification-list">
                   {community.notifications.map((notification) => (
-                    <li key={notification.id}><strong>{notification.kind.replaceAll('-', ' ')}</strong><time>{new Date(notification.createdAt).toLocaleString(locale)}</time></li>
+                    <li key={notification.id}><strong>{notificationLabels[locale][notification.kind] ?? notification.kind}</strong><time>{new Date(notification.createdAt).toLocaleString(locale)}</time></li>
                   ))}
                 </ol>
               ) : <p className="empty-state">{copy.noNotifications}</p>}

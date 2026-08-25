@@ -14,9 +14,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test:e2e": "bash scripts/verify-browser-e2e.sh",
+    "test:e2e:direct": "playwright test",
     "verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "verify:migration": "bash scripts/verify-d1-migration.sh",
+    "verify:campaign": "bash scripts/verify-campaign-cycle.sh",
+    "verify:runtime": "bash scripts/verify-runtime-smoke.sh",
     "verify:webhook": "node scripts/verify-payment-webhook.mjs",
     "data:provinces": "node scripts/fetch-provinces.mjs"
   },

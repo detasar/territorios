@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { resolveBattleTick } from './combat';
+import { allocateCombatLosses, resolveBattleTick } from './combat';
 
 const neutralModifiers = {
   supplyBp: 10_000,
@@ -47,7 +47,42 @@ describe('resolveBattleTick', () => {
     expect(result.attacker.freePower).toBe(8_000n);
     expect(result.attacker.paidPower).toBe(2_000n);
     expect(result.attacker.queuedPaidPower).toBe(998_000n);
+    expect(result.attacker.effectivePaidUnits).toBe(2_000n);
+    expect(result.attacker.queuedPaidUnits).toBe(998_000n);
     expect(result.attacker.paidShareBp).toBe(2_000);
+  });
+
+  it('allocates casualties only across units admitted to the tick', () => {
+    const result = allocateCombatLosses({
+      freeUnits: 100n,
+      paidUnits: 1_000n,
+      effectivePaidUnits: 25n,
+      losses: 4n,
+    });
+
+    expect(result).toEqual({
+      freeUnits: 97n,
+      paidUnits: 999n,
+      freeLosses: 3n,
+      paidLosses: 1n,
+      queuedPaidUnits: 975n,
+    });
+  });
+
+  it('bases casualties on participating units instead of modified power', () => {
+    const result = resolveBattleTick({
+      previousSiegeBp: 0,
+      attacker: {
+        freeUnits: 100n,
+        paidUnits: 1_000n,
+        modifiers: { ...neutralModifiers, homelandBp: 15_000 },
+      },
+      defender: { freeUnits: 100n, paidUnits: 0n, modifiers: neutralModifiers },
+    });
+
+    expect(result.attacker.effectivePaidUnits).toBe(25n);
+    expect(result.attacker.queuedPaidUnits).toBe(975n);
+    expect(result.attackerLosses).toBeLessThanOrEqual(125n);
   });
 
   it('is deterministic for arbitrary valid unit counts', () => {

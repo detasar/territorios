@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeCouncilSeats,
   buildCouncilRoster,
   resolveRankedChoice,
   validSupplyTargets,
 } from './governance';
+
+describe('council term boundaries', () => {
+  it('returns only seats from the active term window', () => {
+    const now = Date.UTC(2026, 7, 25, 12);
+    expect(activeCouncilSeats([
+      { seatKind: 'public-1', userId: 'expired', termStartsAt: now - 10_000, termEndsAt: now - 1 },
+      { seatKind: 'public-2', userId: 'active', termStartsAt: now - 10_000, termEndsAt: now + 10_000 },
+      { seatKind: 'defense', userId: 'future', termStartsAt: now + 1, termEndsAt: now + 20_000 },
+    ], now)).toEqual([
+      { seatKind: 'public-2', userId: 'active', termStartsAt: now - 10_000, termEndsAt: now + 10_000 },
+    ]);
+  });
+});
 
 describe('ranked governance', () => {
   it('elects the first candidate with a strict majority of active ballots', () => {

@@ -2,6 +2,7 @@ import type { CommunitySnapshot } from '../src/contracts/game';
 import type { AnnouncementKey, ReportReason } from '../src/domain/community/moderation';
 import { classifyReport, sanitizeReportDetails } from '../src/domain/community/moderation';
 import { roleActionFor } from '../src/domain/community/roles';
+import { advanceCampaign } from '../src/domain/governance/campaign';
 import {
   buildCouncilRoster,
   resolveRankedChoice,
@@ -9,8 +10,15 @@ import {
 } from '../src/domain/governance/governance';
 import { canonicalEvent, ENGINE_VERSION } from '../src/domain/world/world';
 import { GameCommandError, type IdentityUser } from './game';
+import { listValidCampaignTargets } from './campaigns';
 import { getRawD1 } from './index';
-import { ACTIVE_SEASON_ID, ensureWorld } from './world-bootstrap';
+import {
+  activeSeasonRecord,
+  campaignId,
+  councilTermId,
+  ensureWorld,
+  governanceRoundId,
+} from './world-bootstrap';
 
 const HOUR_MILLISECONDS = 60 * 60 * 1_000;
 const DAY_MILLISECONDS = 24 * HOUR_MILLISECONDS;
@@ -46,6 +54,37 @@ type SeatRow = {
   term_ends_at: number;
 };
 
+type CouncilTermRow = {
+  id: string;
+  election_round_id: string;
+  term_number: number;
+  starts_at: number;
+  ends_at: number;
+};
+
+type CampaignRow = {
+  id: string;
+  ballot_round_id: string;
+  cycle_number: number;
+  phase: 'planning' | 'mobilizing' | 'active' | 'cooldown' | 'resolved';
+  council_territory_code: string;
+  origin_territory_code: string;
+  target_territory_code: string | null;
+  attacker_faction_id: string;
+  battle_id: string | null;
+  opens_at: number;
+  ballot_closes_at: number;
+  mobilizes_at: number | null;
+  resolved_at: number | null;
+  cooldown_ends_at: number | null;
+  outcome: string | null;
+};
+
+type GovernanceContext = {
+  term: CouncilTermRow;
+  campaign: CampaignRow;
+};
+
 type AnnouncementRow = {
   id: string;
   territory_code: string;
@@ -63,15 +102,24 @@ export async function getCommunitySnapshot(
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
   await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   const d1 = getRawD1();
-  const membership = viewerUserId ? await getMembership(viewerUserId) : null;
+  const membership = viewerUserId ? await getMembership(seasonId, viewerUserId) : null;
   const territoryCode = membership?.home_territory_code ?? null;
+  const governance = territoryCode && membership
+    ? await ensureGovernanceContext(seasonId, territoryCode, membership.faction_id, now)
+    : null;
+  const campaignTarget = governance?.campaign.target_territory_code
+    ? await d1.prepare('SELECT name FROM territories WHERE code = ?1')
+        .bind(governance.campaign.target_territory_code)
+        .first<{ name: string }>()
+    : null;
   const candidateRows = territoryCode
-    ? await getCandidates(membership!.faction_id)
+    ? await getCandidates(seasonId, membership!.faction_id)
     : [];
   const candidateProfiles = await Promise.all(
     candidateRows.map(async (candidate) => {
-      const candidateRef = await publicUserRef(candidate.user_id);
+      const candidateRef = await publicUserRef(seasonId, candidate.user_id);
       return {
         ...candidate,
         candidateRef,
@@ -81,36 +129,32 @@ export async function getCommunitySnapshot(
   );
   const candidateByUserId = new Map(candidateProfiles.map((candidate) => [candidate.user_id, candidate]));
 
-  const [seatRows, ballotRows, validTargetRows] = territoryCode
+  const [seatRows, ballotRows, validTargetRows] = territoryCode && governance
     ? await Promise.all([
         all<SeatRow>(
           d1.prepare(
-            `SELECT seat.seat_kind, seat.user_id, membership.role, seat.term_ends_at
+            `SELECT seat.seat_kind, seat.user_id, membership.role, term.ends_at AS term_ends_at
              FROM council_seats seat
+             JOIN council_terms term ON term.id = seat.term_id
              LEFT JOIN faction_memberships membership
-               ON membership.season_id = seat.season_id AND membership.user_id = seat.user_id
-             WHERE seat.season_id = ?1 AND seat.territory_code = ?2
+               ON membership.season_id = term.season_id AND membership.user_id = seat.user_id
+             WHERE seat.term_id = ?1 AND term.status = 'active'
+               AND term.starts_at <= ?2 AND term.ends_at > ?2
              ORDER BY CASE seat.seat_kind
                WHEN 'public-1' THEN 1 WHEN 'public-2' THEN 2 WHEN 'defense' THEN 3
                WHEN 'strategy' THEN 4 ELSE 5 END`,
-          ).bind(ACTIVE_SEASON_ID, territoryCode),
+          ).bind(governance.term.id, now),
         ),
         all<BallotRow>(
           d1.prepare(
             `SELECT election_kind, voter_user_id, ranked_choices_json
-             FROM council_ballots WHERE season_id = ?1 AND territory_code = ?2`,
-          ).bind(ACTIVE_SEASON_ID, territoryCode),
+             FROM council_ballots WHERE round_id IN (?1, ?2)`,
+          ).bind(governance.term.election_round_id, governance.campaign.ballot_round_id),
         ),
-        all<{ code: string; name: string; route_kind: string }>(
-          d1.prepare(
-            `SELECT adjacency.to_code AS code, territory.name, adjacency.route_kind
-             FROM territory_adjacencies adjacency
-             JOIN territories territory ON territory.code = adjacency.to_code
-             JOIN territory_states state
-               ON state.season_id = ?1 AND state.territory_code = adjacency.to_code
-             WHERE adjacency.from_code = ?2 AND state.supply > 0
-             ORDER BY territory.name`,
-          ).bind(ACTIVE_SEASON_ID, territoryCode),
+        listValidCampaignTargets(
+          seasonId,
+          governance.campaign.origin_territory_code,
+          governance.campaign.attacker_faction_id,
         ),
       ])
     : [[], [], []];
@@ -122,7 +166,7 @@ export async function getCommunitySnapshot(
         return { seatKind, memberRef: null, label: null, role: null, termEndsAt: null };
       }
       const profile = candidateByUserId.get(stored.user_id);
-      const memberRef = profile?.candidateRef ?? await publicUserRef(stored.user_id);
+      const memberRef = profile?.candidateRef ?? await publicUserRef(seasonId, stored.user_id);
       return {
         seatKind,
         memberRef,
@@ -134,12 +178,19 @@ export async function getCommunitySnapshot(
   );
   const filledSeatCount = seats.filter((seat) => seat.memberRef).length;
   const targetBallots = toRankedBallots(ballotRows, 'target');
-  let targetResult = resolveRankedChoice(
-    validTargetRows.map((target) => target.code),
-    targetBallots,
-    Math.max(1, Math.ceil(filledSeatCount / 2)),
-  );
-  if (targetResult.status === 'tie') {
+  let targetResult = governance?.campaign.target_territory_code
+    ? {
+        status: 'winner' as const,
+        winner: governance.campaign.target_territory_code,
+        finalists: [governance.campaign.target_territory_code],
+        rounds: [],
+      }
+    : resolveRankedChoice(
+        validTargetRows.map((target) => target.code),
+        targetBallots,
+        Math.max(1, Math.ceil(filledSeatCount / 2)),
+      );
+  if (!governance?.campaign.target_territory_code && targetResult.status === 'tie') {
     const runoff = resolveRankedChoice(
       targetResult.finalists,
       toRankedBallots(ballotRows, 'public-runoff'),
@@ -171,7 +222,7 @@ export async function getCommunitySnapshot(
           d1.prepare(
             `SELECT payload_json FROM game_events
              WHERE season_id = ?1 AND actor_user_id = ?2 AND event_type = 'ANNOUNCEMENT_VOTE_CAST'`,
-          ).bind(ACTIVE_SEASON_ID, viewerUserId),
+          ).bind(seasonId, viewerUserId),
         )
       : Promise.resolve([]),
     viewerUserId
@@ -204,7 +255,7 @@ export async function getCommunitySnapshot(
 
   const announcements = (
     await Promise.all(announcementRows.map(async (announcement) => {
-      const authorRef = await publicUserRef(announcement.author_user_id);
+      const authorRef = await publicUserRef(seasonId, announcement.author_user_id);
       return {
         id: announcement.id,
         territoryCode: announcement.territory_code,
@@ -221,7 +272,7 @@ export async function getCommunitySnapshot(
     }))
   ).filter((announcement) => !blockedRefs.has(announcement.authorRef) && !mutedRefs.has(announcement.authorRef));
 
-  const viewerRef = viewerUserId ? await publicUserRef(viewerUserId) : null;
+  const viewerRef = viewerUserId ? await publicUserRef(seasonId, viewerUserId) : null;
   const lastRoleAction = viewerUserId
     ? await d1.prepare(
         `SELECT created_at FROM audit_events
@@ -231,6 +282,17 @@ export async function getCommunitySnapshot(
     : null;
   const nextRoleActionAt = lastRoleAction ? lastRoleAction.created_at + DAY_MILLISECONDS : null;
   const isCouncilMember = Boolean(viewerRef && seats.some((seat) => seat.memberRef === viewerRef));
+  const targetBallotCast = Boolean(
+    viewerUserId && ballotRows.some(
+      (ballot) => ballot.election_kind === 'target' && ballot.voter_user_id === viewerUserId,
+    ),
+  );
+  const canVoteTarget = Boolean(
+    governance?.campaign.phase === 'planning'
+      && isCouncilMember
+      && !targetBallotCast
+      && validTargetRows.length > 0,
+  );
   return {
     mode: 'live-community',
     serverTime: now,
@@ -240,6 +302,24 @@ export async function getCommunitySnapshot(
       factionName: membership.faction_name,
     } : null,
     council: {
+      term: governance ? {
+        id: governance.term.id,
+        number: governance.term.term_number,
+        startsAt: governance.term.starts_at,
+        endsAt: governance.term.ends_at,
+      } : null,
+      campaign: governance ? {
+        id: governance.campaign.id,
+        cycleNumber: governance.campaign.cycle_number,
+        phase: governance.campaign.phase,
+        originTerritoryCode: governance.campaign.origin_territory_code,
+        targetTerritoryCode: governance.campaign.target_territory_code,
+        targetTerritoryName: campaignTarget?.name ?? null,
+        battleId: governance.campaign.battle_id,
+        ballotClosesAt: governance.campaign.ballot_closes_at,
+        mobilizesAt: governance.campaign.mobilizes_at,
+        cooldownEndsAt: governance.campaign.cooldown_ends_at,
+      } : null,
       seats,
       candidates: candidateProfiles.map((candidate) => ({
         candidateRef: candidate.candidateRef,
@@ -250,18 +330,15 @@ export async function getCommunitySnapshot(
       validTargets: validTargetRows.map((target) => ({
         code: target.code,
         name: target.name,
-        routeKind: target.route_kind,
+        routeKind: target.routeKind,
       })),
       representativeBallotCast: Boolean(
         viewerUserId && ballotRows.some(
           (ballot) => ballot.election_kind === 'representative' && ballot.voter_user_id === viewerUserId,
         ),
       ),
-      targetBallotCast: Boolean(
-        viewerUserId && ballotRows.some(
-          (ballot) => ballot.election_kind === 'target' && ballot.voter_user_id === viewerUserId,
-        ),
-      ),
+      targetBallotCast,
+      canVoteTarget,
       targetResult: {
         status: targetResult.status,
         winner: targetResult.winner,
@@ -296,8 +373,9 @@ export async function executeRoleAction(
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
   await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   const d1 = getRawD1();
-  const membership = await requireMembership(user.userId);
+  const membership = await requireMembership(seasonId, user.userId);
   if (membership.home_territory_code !== command.territoryCode) {
     throw new GameCommandError('La acción de rol solo se aplica a tu provincia.', 403);
   }
@@ -323,7 +401,7 @@ export async function executeRoleAction(
   const state = await d1.prepare(
     `SELECT free_garrison, supply, fortification_bp FROM territory_states
      WHERE season_id = ?1 AND territory_code = ?2`,
-  ).bind(ACTIVE_SEASON_ID, command.territoryCode).first<{
+  ).bind(seasonId, command.territoryCode).first<{
     free_garrison: number;
     supply: number;
     fortification_bp: number;
@@ -340,7 +418,7 @@ export async function executeRoleAction(
        JOIN territory_states state
          ON state.season_id = ?1 AND state.territory_code = adjacency.to_code
        WHERE adjacency.from_code = ?2 ORDER BY state.free_garrison DESC LIMIT 1`,
-    ).bind(ACTIVE_SEASON_ID, command.territoryCode).first<{ free_garrison: number }>();
+    ).bind(seasonId, command.territoryCode).first<{ free_garrison: number }>();
     const midpoint = Math.round(Number(target?.free_garrison ?? 0) / 500) * 500;
     intelBand = { minimum: Math.max(0, midpoint - 500), maximum: midpoint + 500 };
   }
@@ -350,19 +428,19 @@ export async function executeRoleAction(
     effectStatements.push(d1.prepare(
       `UPDATE territory_states SET free_garrison = free_garrison + ?1, version = version + 1
        WHERE season_id = ?2 AND territory_code = ?3`,
-    ).bind(appliedAmount, ACTIVE_SEASON_ID, command.territoryCode));
+    ).bind(appliedAmount, seasonId, command.territoryCode));
   }
   if (roleAction.effect === 'supply') {
     effectStatements.push(d1.prepare(
       `UPDATE territory_states SET supply = supply + ?1, version = version + 1
        WHERE season_id = ?2 AND territory_code = ?3`,
-    ).bind(appliedAmount, ACTIVE_SEASON_ID, command.territoryCode));
+    ).bind(appliedAmount, seasonId, command.territoryCode));
   }
   if (roleAction.effect === 'fortification') {
     effectStatements.push(d1.prepare(
       `UPDATE territory_states SET fortification_bp = fortification_bp + ?1, version = version + 1
        WHERE season_id = ?2 AND territory_code = ?3`,
-    ).bind(appliedAmount, ACTIVE_SEASON_ID, command.territoryCode));
+    ).bind(appliedAmount, seasonId, command.territoryCode));
   }
   if (roleAction.effect === 'faction-score' || roleAction.effect === 'morale') {
     effectStatements.push(d1.prepare('UPDATE factions SET score = score + ?1 WHERE id = ?2')
@@ -372,7 +450,7 @@ export async function executeRoleAction(
     effectStatements.push(d1.prepare(
       `UPDATE wallets SET free_support = free_support + ?1, updated_at = ?2
        WHERE season_id = ?3 AND user_id = ?4`,
-    ).bind(appliedAmount, now, ACTIVE_SEASON_ID, user.userId));
+    ).bind(appliedAmount, now, seasonId, user.userId));
   }
 
   const eventId = crypto.randomUUID();
@@ -389,12 +467,12 @@ export async function executeRoleAction(
     d1.prepare(
       `UPDATE faction_memberships SET contribution_score = contribution_score + 25
        WHERE season_id = ?1 AND user_id = ?2`,
-    ).bind(ACTIVE_SEASON_ID, user.userId),
+    ).bind(seasonId, user.userId),
     d1.prepare(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'ROLE_ACTION_COMPLETED', ?3, 'territory', ?4, ?5, ?6, ?7, ?8)`,
-    ).bind(eventId, ACTIVE_SEASON_ID, user.userId, command.territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(eventId, seasonId, user.userId, command.territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
     d1.prepare(
       `INSERT INTO audit_events
        (id, actor_user_id, action, target_type, target_id, outcome, metadata_json, created_at)
@@ -413,7 +491,7 @@ export async function executeRoleAction(
       `notification-role-${(await sha256(`${user.userId}|${dayIndex}`)).slice(0, 32)}`,
       user.userId,
       payload,
-      `role-action:${ACTIVE_SEASON_ID}:${dayIndex}`,
+      `role-action:${seasonId}:${dayIndex}`,
       now,
     ),
   ];
@@ -424,14 +502,14 @@ export async function executeRoleAction(
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
     ).bind(
       crypto.randomUUID(),
-      ACTIVE_SEASON_ID,
+      seasonId,
       user.userId,
       command.territoryCode,
       roleAction.assetKind,
       appliedAmount,
       `role:${membership.role}`,
       eventId,
-      `role-action:${ACTIVE_SEASON_ID}:${user.userId}:${idempotencyKey}`,
+      `role-action:${seasonId}:${user.userId}:${idempotencyKey}`,
       now,
     ));
   }
@@ -446,15 +524,25 @@ export async function castCouncilBallot(
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
   await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   await assertRateLimit(user.userId, 'community.ballot', 12, DAY_MILLISECONDS, now);
   const d1 = getRawD1();
-  const membership = await requireMembership(user.userId);
+  const membership = await requireMembership(seasonId, user.userId);
   if (membership.home_territory_code !== command.territoryCode) {
     throw new GameCommandError('Solo puedes votar en la provincia que representas.', 403);
   }
   if (new Set(command.rankedChoices).size !== command.rankedChoices.length) {
     throw new GameCommandError('Las preferencias no pueden repetirse.', 400);
   }
+  const governance = await ensureGovernanceContext(
+    seasonId,
+    command.territoryCode,
+    membership.faction_id,
+    now,
+  );
+  const roundId = command.electionKind === 'representative'
+    ? governance.term.election_round_id
+    : governance.campaign.ballot_round_id;
 
   const existingByKey = await d1
     .prepare('SELECT voter_user_id FROM council_ballots WHERE idempotency_key = ?1')
@@ -469,30 +557,39 @@ export async function castCouncilBallot(
   const alreadyVoted = await d1
     .prepare(
       `SELECT id FROM council_ballots
-       WHERE season_id = ?1 AND territory_code = ?2 AND election_kind = ?3 AND voter_user_id = ?4`,
+       WHERE round_id = ?1 AND election_kind = ?2 AND voter_user_id = ?3`,
     )
-    .bind(ACTIVE_SEASON_ID, command.territoryCode, command.electionKind, user.userId)
+    .bind(roundId, command.electionKind, user.userId)
     .first<{ id: string }>();
   if (alreadyVoted) throw new GameCommandError('Ya has votado en esta elección.', 409);
 
   if (command.electionKind === 'representative') {
-    const candidates = await getCandidates(membership.faction_id);
-    const refs = new Set(await Promise.all(candidates.map((candidate) => publicUserRef(candidate.user_id))));
+    const candidates = await getCandidates(seasonId, membership.faction_id);
+    const refs = new Set(await Promise.all(candidates.map((candidate) => publicUserRef(seasonId, candidate.user_id))));
     if (command.rankedChoices.some((choice) => !refs.has(choice))) {
       throw new GameCommandError('La papeleta contiene un candidato no elegible.', 400);
     }
   } else {
-    const targets = await validTargetCodes(command.territoryCode);
+    if (governance.campaign.phase !== 'planning') {
+      throw new GameCommandError('La ronda de objetivo ya está cerrada.', 409);
+    }
+    const targets = await validTargetCodes(
+      seasonId,
+      governance.campaign.origin_territory_code,
+      governance.campaign.attacker_faction_id,
+    );
     if (command.rankedChoices.some((choice) => !targets.has(choice))) {
       throw new GameCommandError('El objetivo no tiene una ruta de suministro válida.', 400);
     }
     if (command.electionKind === 'target') {
       const seat = await d1
         .prepare(
-          `SELECT 1 AS allowed FROM council_seats
-           WHERE season_id = ?1 AND territory_code = ?2 AND user_id = ?3 AND term_ends_at > ?4`,
+          `SELECT 1 AS allowed FROM council_seats seat
+           JOIN council_terms term ON term.id = seat.term_id
+           WHERE term.id = ?1 AND seat.user_id = ?2 AND term.status = 'active'
+             AND term.starts_at <= ?3 AND term.ends_at > ?3`,
         )
-        .bind(ACTIVE_SEASON_ID, command.territoryCode, user.userId, now)
+        .bind(governance.term.id, user.userId, now)
         .first<{ allowed: number }>();
       if (!seat) throw new GameCommandError('Solo el consejo puede votar el objetivo inicial.', 403);
     } else {
@@ -510,18 +607,18 @@ export async function castCouncilBallot(
   const eventId = crypto.randomUUID();
   const payload = canonicalEvent({
     electionKind: command.electionKind,
+    roundId,
     rankedChoices: command.rankedChoices,
     territoryCode: command.territoryCode,
   });
   await d1.batch([
     d1.prepare(
       `INSERT INTO council_ballots
-       (id, season_id, territory_code, election_kind, voter_user_id, ranked_choices_json, idempotency_key, cast_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+       (id, round_id, election_kind, voter_user_id, ranked_choices_json, idempotency_key, cast_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
     ).bind(
       ballotId,
-      ACTIVE_SEASON_ID,
-      command.territoryCode,
+      roundId,
       command.electionKind,
       user.userId,
       JSON.stringify(command.rankedChoices),
@@ -532,7 +629,7 @@ export async function castCouncilBallot(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'COUNCIL_VOTE_CAST', ?3, 'council', ?4, ?5, ?6, ?7, ?8)`,
-    ).bind(eventId, ACTIVE_SEASON_ID, user.userId, command.territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(eventId, seasonId, user.userId, command.territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
     d1.prepare(
       `INSERT INTO audit_events
        (id, actor_user_id, action, target_type, target_id, outcome, metadata_json, created_at)
@@ -541,7 +638,9 @@ export async function castCouncilBallot(
   ]);
 
   if (command.electionKind === 'representative') {
-    await reconcileCouncil(command.territoryCode, membership.faction_id, now);
+    await reconcileCouncil(seasonId, command.territoryCode, membership.faction_id, now);
+  } else {
+    await lockCampaignTargetIfResolved(seasonId, governance, now);
   }
   return getCommunitySnapshot(user.userId, now);
 }
@@ -553,18 +652,27 @@ export async function publishAnnouncement(
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
   await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   await assertRateLimit(user.userId, 'community.announcement', 6, HOUR_MILLISECONDS, now);
   const d1 = getRawD1();
-  const membership = await requireMembership(user.userId);
+  const membership = await requireMembership(seasonId, user.userId);
   if (membership.home_territory_code !== command.territoryCode) {
     throw new GameCommandError('Solo puedes anunciar para tu provincia.', 403);
   }
+  const governance = await ensureGovernanceContext(
+    seasonId,
+    command.territoryCode,
+    membership.faction_id,
+    now,
+  );
   const seat = await d1
     .prepare(
-      `SELECT 1 AS allowed FROM council_seats
-       WHERE season_id = ?1 AND territory_code = ?2 AND user_id = ?3 AND term_ends_at > ?4`,
+      `SELECT 1 AS allowed FROM council_seats seat
+       JOIN council_terms term ON term.id = seat.term_id
+       WHERE term.id = ?1 AND seat.user_id = ?2 AND term.status = 'active'
+         AND term.starts_at <= ?3 AND term.ends_at > ?3`,
     )
-    .bind(ACTIVE_SEASON_ID, command.territoryCode, user.userId, now)
+    .bind(governance.term.id, user.userId, now)
     .first<{ allowed: number }>();
   if (!seat && membership.role !== 'herald') {
     throw new GameCommandError('Solo el consejo o un heraldo pueden publicar anuncios.', 403);
@@ -584,12 +692,12 @@ export async function publishAnnouncement(
       `INSERT INTO announcements
        (id, season_id, territory_code, author_user_id, message_key, status, upvotes, downvotes, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, 'published', 0, 0, ?6)`,
-    ).bind(deterministicId, ACTIVE_SEASON_ID, command.territoryCode, user.userId, command.messageKey, now),
+    ).bind(deterministicId, seasonId, command.territoryCode, user.userId, command.messageKey, now),
     d1.prepare(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'ANNOUNCEMENT_PUBLISHED', ?3, 'announcement', ?4, ?5, ?6, ?7, ?8)`,
-    ).bind(eventId, ACTIVE_SEASON_ID, user.userId, deterministicId, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(eventId, seasonId, user.userId, deterministicId, payload, await sha256(payload), ENGINE_VERSION, now),
     d1.prepare(
       `INSERT OR IGNORE INTO notifications (id, user_id, kind, payload_json, dedupe_key, read_at, created_at)
        SELECT 'notification-' || ?1 || '-' || membership.user_id,
@@ -597,7 +705,7 @@ export async function publishAnnouncement(
        FROM faction_memberships membership
        JOIN notification_preferences preference ON preference.user_id = membership.user_id
        WHERE membership.season_id = ?4 AND membership.faction_id = ?5 AND preference.council_alerts = 1`,
-    ).bind(deterministicId, payload, now, ACTIVE_SEASON_ID, membership.faction_id),
+    ).bind(deterministicId, payload, now, seasonId, membership.faction_id),
     d1.prepare(
       `INSERT INTO audit_events
        (id, actor_user_id, action, target_type, target_id, outcome, metadata_json, created_at)
@@ -612,6 +720,8 @@ export async function voteAnnouncement(
   command: { announcementId: string; direction: 'up' | 'down' },
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
+  await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   await assertRateLimit(user.userId, 'community.announcement-vote', 40, DAY_MILLISECONDS, now);
   const d1 = getRawD1();
   const announcement = await d1
@@ -632,7 +742,7 @@ export async function voteAnnouncement(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'ANNOUNCEMENT_VOTE_CAST', ?3, 'announcement', ?4, ?5, ?6, ?7, ?8)`,
-    ).bind(eventId, ACTIVE_SEASON_ID, user.userId, command.announcementId, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(eventId, seasonId, user.userId, command.announcementId, payload, await sha256(payload), ENGINE_VERSION, now),
     d1.prepare(`UPDATE announcements SET ${column} = ${column} + 1 WHERE id = ?1`).bind(command.announcementId),
     d1.prepare(
       `INSERT INTO audit_events
@@ -649,13 +759,15 @@ export async function submitReport(
   idempotencyKey: string,
   now = Date.now(),
 ): Promise<{ reportId: string; status: 'queued-for-human-review' }> {
+  await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   await assertRateLimit(user.userId, 'community.report', 12, DAY_MILLISECONDS, now);
   const d1 = getRawD1();
   if (command.targetType === 'announcement') {
     const target = await d1.prepare('SELECT id FROM announcements WHERE id = ?1').bind(command.targetId).first();
     if (!target) throw new GameCommandError('El contenido denunciado no existe.', 404);
   } else {
-    const resolved = await resolveUserRef(command.targetId);
+    const resolved = await resolveUserRef(seasonId, command.targetId);
     if (!resolved) throw new GameCommandError('El perfil denunciado no existe.', 404);
     if (resolved === user.userId) throw new GameCommandError('No puedes denunciar tu propio perfil.', 400);
   }
@@ -694,7 +806,7 @@ export async function submitReport(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'MODERATION_ACTION', ?3, 'report', ?4, ?5, ?6, ?7, ?8)`,
-    ).bind(eventId, ACTIVE_SEASON_ID, user.userId, reportId, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(eventId, seasonId, user.userId, reportId, payload, await sha256(payload), ENGINE_VERSION, now),
     d1.prepare(
       `INSERT INTO audit_events
        (id, actor_user_id, action, target_type, target_id, outcome, metadata_json, created_at)
@@ -710,7 +822,9 @@ export async function setSafetyAction(
   idempotencyKey: string,
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
-  const targetUserId = await resolveUserRef(command.targetRef);
+  await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
+  const targetUserId = await resolveUserRef(seasonId, command.targetRef);
   if (!targetUserId) throw new GameCommandError('El perfil no existe.', 404);
   if (targetUserId === user.userId) throw new GameCommandError('No puedes silenciar tu propio perfil.', 400);
   const d1 = getRawD1();
@@ -735,6 +849,7 @@ export async function updateNotificationPreferences(
   idempotencyKey: string,
   now = Date.now(),
 ): Promise<CommunitySnapshot> {
+  await ensureWorld(now);
   const d1 = getRawD1();
   const auditId = `audit-preferences-${(await sha256(`${user.userId}|${idempotencyKey}`)).slice(0, 32)}`;
   await d1.batch([
@@ -777,17 +892,241 @@ export async function updateNotificationPreferences(
   return getCommunitySnapshot(user.userId, now);
 }
 
-async function reconcileCouncil(territoryCode: string, factionId: string, now: number) {
+async function lockCampaignTargetIfResolved(
+  seasonId: string,
+  governance: GovernanceContext,
+  now: number,
+): Promise<void> {
+  if (governance.campaign.phase !== 'planning') return;
   const d1 = getRawD1();
-  const candidates = await getCandidates(factionId);
+  const [ballots, targets, seatCountRow] = await Promise.all([
+    all<BallotRow>(d1.prepare(
+      `SELECT election_kind, voter_user_id, ranked_choices_json
+       FROM council_ballots WHERE round_id = ?1`,
+    ).bind(governance.campaign.ballot_round_id)),
+    validTargetCodes(
+      seasonId,
+      governance.campaign.origin_territory_code,
+      governance.campaign.attacker_faction_id,
+    ),
+    d1.prepare(
+      `SELECT COUNT(*) AS count FROM council_seats seat
+       JOIN council_terms term ON term.id = seat.term_id
+       WHERE term.id = ?1 AND seat.user_id IS NOT NULL AND term.status = 'active'
+         AND term.starts_at <= ?2 AND term.ends_at > ?2`,
+    ).bind(governance.term.id, now).first<{ count: number }>(),
+  ]);
+  const quorum = Math.max(1, Math.ceil(Number(seatCountRow?.count ?? 0) / 2));
+  let result = resolveRankedChoice([...targets], toRankedBallots(ballots, 'target'), quorum);
+  if (result.status === 'tie') {
+    const runoff = resolveRankedChoice(
+      result.finalists,
+      toRankedBallots(ballots, 'public-runoff'),
+      1,
+    );
+    if (runoff.status !== 'no-quorum') result = runoff;
+  }
+  if (result.status !== 'winner' || !result.winner) return;
+
+  const transition = advanceCampaign({
+    id: governance.campaign.id,
+    seasonId,
+    councilTerritoryCode: governance.campaign.council_territory_code,
+    originTerritoryCode: governance.campaign.origin_territory_code,
+    attackerFactionId: governance.campaign.attacker_faction_id,
+    cycleNumber: governance.campaign.cycle_number,
+    phase: governance.campaign.phase,
+    opensAt: governance.campaign.opens_at,
+    ballotClosesAt: governance.campaign.ballot_closes_at,
+    targetTerritoryCode: governance.campaign.target_territory_code,
+    mobilizesAt: governance.campaign.mobilizes_at,
+    battleId: governance.campaign.battle_id,
+    resolvedAt: governance.campaign.resolved_at,
+    cooldownEndsAt: governance.campaign.cooldown_ends_at,
+    outcome: governance.campaign.outcome === 'captured' || governance.campaign.outcome === 'repelled'
+      ? governance.campaign.outcome
+      : null,
+  }, { now, targetWinner: result.winner });
+  if (transition.campaign.phase !== 'mobilizing') return;
+  const payload = canonicalEvent({
+    campaignId: governance.campaign.id,
+    cycleNumber: governance.campaign.cycle_number,
+    originTerritoryCode: governance.campaign.origin_territory_code,
+    targetTerritoryCode: result.winner,
+  });
+  await d1.batch([
+    d1.prepare(
+      `UPDATE governance_rounds SET status = 'locked', locked_at = ?1, winner_code = ?2
+       WHERE id = ?3 AND status = 'open'`,
+    ).bind(now, result.winner, governance.campaign.ballot_round_id),
+    d1.prepare(
+      `UPDATE campaign_rounds SET phase = 'mobilizing', target_territory_code = ?1, mobilizes_at = ?2
+       WHERE id = ?3 AND phase = 'planning'`,
+    ).bind(result.winner, transition.campaign.mobilizesAt, governance.campaign.id),
+    d1.prepare(
+      `INSERT OR IGNORE INTO game_events
+       (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id,
+        payload_json, payload_hash, engine_version, created_at)
+       VALUES (?1, ?2, 'CAMPAIGN_TARGET_LOCKED', NULL, 'campaign', ?3, ?4, ?5, ?6, ?7)`,
+    ).bind(
+      `event-campaign-target-${governance.campaign.id}`,
+      seasonId,
+      governance.campaign.id,
+      payload,
+      await sha256(payload),
+      ENGINE_VERSION,
+      now,
+    ),
+  ]);
+}
+
+async function ensureGovernanceContext(
+  seasonId: string,
+  territoryCode: string,
+  factionId: string,
+  now: number,
+): Promise<GovernanceContext> {
+  const term = await ensureCouncilTerm(seasonId, territoryCode, now);
+  const campaign = await ensureCampaignRound(seasonId, territoryCode, factionId, now);
+  return { term, campaign };
+}
+
+async function ensureCouncilTerm(
+  seasonId: string,
+  territoryCode: string,
+  now: number,
+): Promise<CouncilTermRow> {
+  const d1 = getRawD1();
+  const active = await d1.prepare(
+    `SELECT id, election_round_id, term_number, starts_at, ends_at
+     FROM council_terms
+     WHERE season_id = ?1 AND territory_code = ?2 AND status = 'active'
+       AND starts_at <= ?3 AND ends_at > ?3
+     ORDER BY term_number DESC LIMIT 1`,
+  ).bind(seasonId, territoryCode, now).first<CouncilTermRow>();
+  if (active) return active;
+
+  const [last, season] = await Promise.all([
+    d1.prepare(
+      `SELECT term_number FROM council_terms
+       WHERE season_id = ?1 AND territory_code = ?2 ORDER BY term_number DESC LIMIT 1`,
+    ).bind(seasonId, territoryCode).first<{ term_number: number }>(),
+    d1.prepare('SELECT ends_at FROM seasons WHERE id = ?1 AND status = \'active\'')
+      .bind(seasonId).first<{ ends_at: number }>(),
+  ]);
+  if (!season || season.ends_at <= now) throw new Error('Cannot open a council term outside an active season.');
+  const termNumber = (last?.term_number ?? 0) + 1;
+  const termId = councilTermId(seasonId, territoryCode, termNumber);
+  const roundId = governanceRoundId(seasonId, territoryCode, 'representative', termNumber);
+  const endsAt = Math.min(season.ends_at, now + COUNCIL_TERM_MILLISECONDS);
+  await d1.batch([
+    d1.prepare(
+      `UPDATE council_terms SET status = 'expired'
+       WHERE season_id = ?1 AND territory_code = ?2 AND status = 'active' AND ends_at <= ?3`,
+    ).bind(seasonId, territoryCode, now),
+    d1.prepare(
+      `UPDATE governance_rounds SET status = 'closed', locked_at = COALESCE(locked_at, ?3)
+       WHERE season_id = ?1 AND territory_code = ?2 AND round_kind = 'representative' AND status = 'open'`,
+    ).bind(seasonId, territoryCode, now),
+    d1.prepare(
+      `INSERT OR IGNORE INTO governance_rounds
+       (id, season_id, territory_code, round_kind, sequence, status, opens_at, closes_at, locked_at, winner_code, created_at)
+       VALUES (?1, ?2, ?3, 'representative', ?4, 'open', ?5, ?6, NULL, NULL, ?5)`,
+    ).bind(roundId, seasonId, territoryCode, termNumber, now, endsAt),
+    d1.prepare(
+      `INSERT OR IGNORE INTO council_terms
+       (id, season_id, territory_code, election_round_id, term_number, status, starts_at, ends_at, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7, ?6)`,
+    ).bind(termId, seasonId, territoryCode, roundId, termNumber, now, endsAt),
+  ]);
+  const created = await d1.prepare(
+    `SELECT id, election_round_id, term_number, starts_at, ends_at
+     FROM council_terms WHERE id = ?1`,
+  ).bind(termId).first<CouncilTermRow>();
+  if (!created) throw new Error('Council term creation failed.');
+  return created;
+}
+
+async function ensureCampaignRound(
+  seasonId: string,
+  councilTerritoryCode: string,
+  factionId: string,
+  now: number,
+): Promise<CampaignRow> {
+  const d1 = getRawD1();
+  const latest = await d1.prepare(
+    `SELECT id, ballot_round_id, cycle_number, phase, council_territory_code,
+            origin_territory_code, target_territory_code, attacker_faction_id,
+            battle_id, opens_at, ballot_closes_at, mobilizes_at, resolved_at,
+            cooldown_ends_at, outcome
+     FROM campaign_rounds
+     WHERE season_id = ?1 AND council_territory_code = ?2
+     ORDER BY cycle_number DESC LIMIT 1`,
+  ).bind(seasonId, councilTerritoryCode).first<CampaignRow>();
+
+  if (latest) {
+    const planningExpired = latest.phase === 'planning' && latest.ballot_closes_at <= now;
+    const cooldownComplete = latest.phase === 'cooldown' && (latest.cooldown_ends_at ?? Infinity) <= now;
+    if (!planningExpired && !cooldownComplete && latest.phase !== 'resolved') return latest;
+    await d1.batch([
+      d1.prepare(
+        `UPDATE campaign_rounds SET phase = 'resolved', resolved_at = COALESCE(resolved_at, ?1),
+                outcome = COALESCE(outcome, 'no-target') WHERE id = ?2 AND phase IN ('planning','cooldown')`,
+      ).bind(now, latest.id),
+      d1.prepare(
+        `UPDATE governance_rounds SET status = 'closed', locked_at = COALESCE(locked_at, ?1)
+         WHERE id = ?2 AND status = 'open'`,
+      ).bind(now, latest.ballot_round_id),
+    ]);
+  }
+
+  const cycleNumber = (latest?.cycle_number ?? 0) + 1;
+  const originTerritoryCode = latest?.outcome === 'captured' && latest.target_territory_code
+    ? latest.target_territory_code
+    : latest?.origin_territory_code ?? councilTerritoryCode;
+  const id = campaignId(seasonId, councilTerritoryCode, cycleNumber);
+  const roundId = governanceRoundId(seasonId, councilTerritoryCode, 'target', cycleNumber);
+  const season = await d1.prepare('SELECT ends_at FROM seasons WHERE id = ?1 AND status = \'active\'')
+    .bind(seasonId).first<{ ends_at: number }>();
+  if (!season || season.ends_at <= now) throw new Error('Cannot open a campaign outside an active season.');
+  const closesAt = Math.min(season.ends_at, now + 6 * HOUR_MILLISECONDS);
+  await d1.batch([
+    d1.prepare(
+      `INSERT OR IGNORE INTO governance_rounds
+       (id, season_id, territory_code, round_kind, sequence, status, opens_at, closes_at, locked_at, winner_code, created_at)
+       VALUES (?1, ?2, ?3, 'target', ?4, 'open', ?5, ?6, NULL, NULL, ?5)`,
+    ).bind(roundId, seasonId, councilTerritoryCode, cycleNumber, now, closesAt),
+    d1.prepare(
+      `INSERT OR IGNORE INTO campaign_rounds
+       (id, season_id, council_territory_code, origin_territory_code, attacker_faction_id,
+        ballot_round_id, cycle_number, phase, target_territory_code, battle_id, opens_at,
+        ballot_closes_at, mobilizes_at, resolved_at, cooldown_ends_at, outcome, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'planning', NULL, NULL, ?8, ?9, NULL, NULL, NULL, NULL, ?8)`,
+    ).bind(id, seasonId, councilTerritoryCode, originTerritoryCode, factionId, roundId, cycleNumber, now, closesAt),
+  ]);
+  const created = await d1.prepare(
+    `SELECT id, ballot_round_id, cycle_number, phase, council_territory_code,
+            origin_territory_code, target_territory_code, attacker_faction_id,
+            battle_id, opens_at, ballot_closes_at, mobilizes_at, resolved_at,
+            cooldown_ends_at, outcome
+     FROM campaign_rounds WHERE id = ?1`,
+  ).bind(id).first<CampaignRow>();
+  if (!created) throw new Error('Campaign round creation failed.');
+  return created;
+}
+
+async function reconcileCouncil(seasonId: string, territoryCode: string, factionId: string, now: number) {
+  const d1 = getRawD1();
+  const term = await ensureCouncilTerm(seasonId, territoryCode, now);
+  const candidates = await getCandidates(seasonId, factionId);
   const ballots = await all<BallotRow>(
     d1.prepare(
       `SELECT election_kind, voter_user_id, ranked_choices_json FROM council_ballots
-       WHERE season_id = ?1 AND territory_code = ?2 AND election_kind = 'representative'`,
-    ).bind(ACTIVE_SEASON_ID, territoryCode),
+       WHERE round_id = ?1 AND election_kind = 'representative'`,
+    ).bind(term.election_round_id),
   );
   const refs = new Map(
-    await Promise.all(candidates.map(async (candidate) => [candidate.user_id, await publicUserRef(candidate.user_id)] as const)),
+    await Promise.all(candidates.map(async (candidate) => [candidate.user_id, await publicUserRef(seasonId, candidate.user_id)] as const)),
   );
   const refToUserId = new Map([...refs].map(([userId, ref]) => [ref, userId]));
   const roster = buildCouncilRoster(
@@ -799,38 +1138,31 @@ async function reconcileCouncil(territoryCode: string, factionId: string, now: n
     })),
     toRankedBallots(ballots, 'representative'),
   );
-  const season = await d1.prepare('SELECT ends_at FROM seasons WHERE id = ?1')
-    .bind(ACTIVE_SEASON_ID).first<{ ends_at: number }>();
-  const termEndsAt = Math.min(season?.ends_at ?? now + COUNCIL_TERM_MILLISECONDS, now + COUNCIL_TERM_MILLISECONDS);
   const payload = canonicalEvent({
+    termId: term.id,
     roster: roster.map((seat) => ({ seatKind: seat.seatKind, memberRef: seat.userId })),
     territoryCode,
   });
   const statements = roster.map((seat) => d1.prepare(
-    `INSERT INTO council_seats (season_id, territory_code, seat_kind, user_id, term_starts_at, term_ends_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-     ON CONFLICT(season_id, territory_code, seat_kind) DO UPDATE SET
-       user_id = excluded.user_id, term_starts_at = excluded.term_starts_at,
-       term_ends_at = excluded.term_ends_at`,
+    `INSERT INTO council_seats (term_id, seat_kind, user_id)
+     VALUES (?1, ?2, ?3)
+     ON CONFLICT(term_id, seat_kind) DO UPDATE SET user_id = excluded.user_id`,
   ).bind(
-    ACTIVE_SEASON_ID,
-    territoryCode,
+    term.id,
     seat.seatKind,
     seat.userId ? refToUserId.get(seat.userId) ?? null : null,
-    now,
-    termEndsAt,
   ));
   statements.push(
     d1.prepare(
       `INSERT INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id, payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'COUNCIL_ROSTER_RESOLVED', NULL, 'council', ?3, ?4, ?5, ?6, ?7)`,
-    ).bind(crypto.randomUUID(), ACTIVE_SEASON_ID, territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
+    ).bind(crypto.randomUUID(), seasonId, territoryCode, payload, await sha256(payload), ENGINE_VERSION, now),
   );
   await d1.batch(statements);
 }
 
-async function getMembership(userId: string): Promise<MembershipRow | null> {
+async function getMembership(seasonId: string, userId: string): Promise<MembershipRow | null> {
   return getRawD1()
     .prepare(
       `SELECT membership.faction_id, faction.name AS faction_name, membership.home_territory_code,
@@ -840,17 +1172,17 @@ async function getMembership(userId: string): Promise<MembershipRow | null> {
        JOIN territories territory ON territory.code = membership.home_territory_code
        WHERE membership.season_id = ?1 AND membership.user_id = ?2`,
     )
-    .bind(ACTIVE_SEASON_ID, userId)
+    .bind(seasonId, userId)
     .first<MembershipRow>();
 }
 
-async function requireMembership(userId: string): Promise<MembershipRow> {
-  const membership = await getMembership(userId);
+async function requireMembership(seasonId: string, userId: string): Promise<MembershipRow> {
+  const membership = await getMembership(seasonId, userId);
   if (!membership) throw new GameCommandError('Elige primero una provincia.', 409);
   return membership;
 }
 
-async function getCandidates(factionId: string): Promise<CandidateRow[]> {
+async function getCandidates(seasonId: string, factionId: string): Promise<CandidateRow[]> {
   return all<CandidateRow>(
     getRawD1().prepare(
       `SELECT membership.user_id, membership.role, membership.contribution_score,
@@ -860,30 +1192,31 @@ async function getCandidates(factionId: string): Promise<CandidateRow[]> {
          ON wallet.season_id = membership.season_id AND wallet.user_id = membership.user_id
        WHERE membership.season_id = ?1 AND membership.faction_id = ?2
        ORDER BY membership.contribution_score DESC, membership.joined_at`,
-    ).bind(ACTIVE_SEASON_ID, factionId),
+    ).bind(seasonId, factionId),
   );
 }
 
-async function validTargetCodes(territoryCode: string): Promise<Set<string>> {
-  const rows = await all<{ code: string }>(
-    getRawD1().prepare(
-      `SELECT adjacency.to_code AS code FROM territory_adjacencies adjacency
-       JOIN territory_states state
-         ON state.season_id = ?1 AND state.territory_code = adjacency.to_code
-       WHERE adjacency.from_code = ?2 AND state.supply > 0`,
-    ).bind(ACTIVE_SEASON_ID, territoryCode),
+async function validTargetCodes(
+  seasonId: string,
+  originTerritoryCode: string,
+  attackerFactionId: string,
+): Promise<Set<string>> {
+  const rows = await listValidCampaignTargets(
+    seasonId,
+    originTerritoryCode,
+    attackerFactionId,
   );
   return new Set(rows.map((row) => row.code));
 }
 
-async function resolveUserRef(targetRef: string): Promise<string | null> {
+async function resolveUserRef(seasonId: string, targetRef: string): Promise<string | null> {
   const users = await all<{ user_id: string }>(
     getRawD1().prepare(
       `SELECT DISTINCT user_id FROM faction_memberships WHERE season_id = ?1`,
-    ).bind(ACTIVE_SEASON_ID),
+    ).bind(seasonId),
   );
   for (const user of users) {
-    if (await publicUserRef(user.user_id) === targetRef) return user.user_id;
+    if (await publicUserRef(seasonId, user.user_id) === targetRef) return user.user_id;
   }
   return null;
 }
@@ -916,8 +1249,8 @@ async function assertRateLimit(
   }
 }
 
-async function publicUserRef(userId: string): Promise<string> {
-  return (await sha256(`candidate|${ACTIVE_SEASON_ID}|${userId}`)).slice(0, 16);
+async function publicUserRef(seasonId: string, userId: string): Promise<string> {
+  return (await sha256(`candidate|${seasonId}|${userId}`)).slice(0, 16);
 }
 
 function publicLabel(userRef: string): string {

@@ -5,7 +5,7 @@ Territorios is a mobile-first, seasonal browser strategy game set across the 52 
 This repository contains the complete `0.1.0` paid-beta candidate:
 
 - official CNIG-derived province geometry with recorded provenance;
-- deterministic hourly battles, four daily capture windows, replay hashes, seasons, and leaderboards;
+- multiple deterministic hourly fronts, council-selected campaign cycles, four daily capture windows, replay hashes, season closure/reset, and leaderboards;
 - faction membership, seven daily roles, five-seat councils, announcements, reports, privacy controls, and bounded notifications;
 - a Stripe **test-mode only** Checkout integration with verified raw-body webhooks, idempotent grants, proportional refunds, dispute freezes, and user-controlled spending limits;
 - a hard combat rule that limits paid power to 20% of a side's effective total power;
@@ -41,19 +41,22 @@ Forward Stripe test events to `/api/payments/webhook`. The server refuses `sk_li
 ```bash
 npm run verify
 npm run verify:migration
+npm run verify:campaign
+npm run verify:runtime
 npm run test:e2e
 npm audit
 ```
 
-`npm run verify` runs lint, type checking, coverage thresholds, and the production build. The migration rehearsal creates a disposable SQLite database and checks 26 application tables, 18 triggers, foreign keys, and integrity. The browser suite starts the app automatically after a local D1 migration.
+`npm run verify` runs lint, type checking, coverage thresholds, and the production build. The migration rehearsal creates a disposable SQLite database and checks 29 application tables, 19 triggers, foreign keys, and integrity. The campaign rehearsal uses a separate disposable D1 instance to prove five council-selected conquests, concurrent reconciliation safety, the next planning round, Crown selection, and season reset. The runtime smoke starts the production build against another disposable D1 and checks 52 territories, eight unique fronts, `combat-2.0.0`, public-data boundaries, province metadata, cache controls, and security headers. The Playwright suite likewise creates and removes its own isolated D1; neither check opens the project-local `.wrangler` database.
 
 ## Documentation
 
 - [Technical specification](docs/TECHNICAL_SPEC.md)
+- [Closed beta usability gate](docs/CLOSED_BETA_TEST_PLAN.md)
 - [Security policy and threat boundaries](SECURITY.md)
 - [Implementation ledger](progress.md)
 - [Source-data provenance](data/provenance/provinces.json)
 
 ## Release boundary
 
-Version `0.1.0` is a public gameplay beta and a Stripe sandbox integration. It is not a live-commerce launch, a financial product, gambling, or a transferable virtual-property system. Support units cannot be traded, cashed out, or transferred between players.
+Version `0.1.0` remains an owner-only gameplay beta and a Stripe sandbox integration. The campaign-loop improvements in this worktree are not deployed until the D1 backup/schema rollout is explicitly approved. Territorios is not a live-commerce launch, a financial product, gambling, or a transferable virtual-property system. Support units cannot be traded, cashed out, or transferred between players.

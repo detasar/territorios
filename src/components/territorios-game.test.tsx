@@ -30,6 +30,7 @@ const provinces = {
 const gameSnapshot = {
   mode: 'live-world',
   serverTime: Date.UTC(2026, 7, 25, 3),
+  lastUpdatedAt: Date.UTC(2026, 7, 25, 3),
   season: {
     id: 'season-1',
     number: 1,
@@ -39,14 +40,29 @@ const gameSnapshot = {
     startsAt: Date.UTC(2026, 7, 14, 3),
     endsAt: Date.UTC(2026, 8, 11, 3),
     lastResolvedTick: 263,
-    engineVersion: 'combat-1.0.0',
+    engineVersion: 'combat-2.0.0',
+    nextTickAt: Date.UTC(2026, 7, 25, 4),
   },
+  previousSeason: null,
   territories: [
-    { code: '28', name: 'Madrid', ownerFactionId: 'faction-28', ownerFactionName: 'Casa de Madrid', color: 'coral', siegeBp: 0, attackerFactionId: null, freeGarrison: 7_000, paidGarrison: 0, supply: 1_000, occupiedAt: null },
-    { code: '45', name: 'Toledo', ownerFactionId: 'faction-45', ownerFactionName: 'Casa de Toledo', color: 'gold', siegeBp: 4_200, attackerFactionId: 'faction-28', freeGarrison: 3_000, paidGarrison: 0, supply: 1_000, occupiedAt: null },
+    { code: '28', name: 'Madrid', ownerFactionId: 'faction-28', ownerFactionName: 'Casa de Madrid', color: 'coral', siegeBp: 0, attackerFactionId: null, freeGarrison: 7_000, paidGarrison: 0, supply: 1_000, fortificationBp: 10_000, occupiedAt: null },
+    { code: '45', name: 'Toledo', ownerFactionId: 'faction-45', ownerFactionName: 'Casa de Toledo', color: 'gold', siegeBp: 4_200, attackerFactionId: 'faction-28', freeGarrison: 3_000, paidGarrison: 0, supply: 1_000, fortificationBp: 12_000, occupiedAt: null },
   ],
   battles: [
-    { id: 'battle-madrid-toledo', originTerritoryCode: '28', targetTerritoryCode: '45', originName: 'Madrid', targetName: 'Toledo', attackerFactionId: 'faction-28', defenderFactionId: 'faction-45', siegeBp: 4_200, tickCount: 0, freeAttackPower: 7_000, paidAttackPower: 0, engineVersion: 'combat-1.0.0' },
+    {
+      id: 'battle-madrid-toledo', campaignId: 'campaign-1', originTerritoryCode: '28',
+      targetTerritoryCode: '45', originName: 'Madrid', targetName: 'Toledo',
+      attackerFactionId: 'faction-28', defenderFactionId: 'faction-45', siegeBp: 4_200,
+      tickCount: 0, freeAttackPower: 7_000, paidAttackPower: 0,
+      startedAt: Date.UTC(2026, 7, 25, 2), engineVersion: 'combat-2.0.0',
+      routeKind: 'land', routeCostBp: 10_000, viewerSide: 'attacker', canSupport: true,
+      supportDisabledReason: null,
+      combatContext: {
+        supplyConnected: true,
+        attacker: { supplyBp: 10_000, distanceBp: 10_000, overextensionBp: 10_000, fortificationBp: 10_000, homelandBp: 10_000 },
+        defender: { supplyBp: 10_000, distanceBp: 10_000, overextensionBp: 10_000, fortificationBp: 12_000, homelandBp: 11_000 },
+      },
+    },
   ],
   factionLeaderboard: [],
   playerLeaderboard: [],
@@ -58,6 +74,7 @@ const gameSnapshot = {
     wallet: { freeSupport: 300, paidSupport: 0, supporterPoints: 0 },
     preferences: { locale: 'es', quietHoursStart: 22, quietHoursEnd: 8, maxWarAlertsPerDay: 1, councilAlerts: true },
   },
+  onboarding: { nextAction: 'support-front', eligibleBattleCount: 1, hasSupportedThisSeason: false },
 };
 
 const supportedSnapshot = {
@@ -97,7 +114,7 @@ describe('TerritoriosGame', () => {
       screen.getByRole('heading', { name: /la corona se decide/i }),
     ).toBeInTheDocument();
     expect(await screen.findByRole('group', { name: /mapa de territorios/i })).toBeInTheDocument();
-    expect(screen.getByText('Madrid → Toledo')).toBeInTheDocument();
+    expect(screen.getAllByText('Madrid → Toledo')).toHaveLength(2);
     expect(screen.getByText('42%')).toBeInTheDocument();
   });
 
@@ -108,6 +125,9 @@ describe('TerritoriosGame', () => {
     const madrid = await screen.findByRole('button', {
       name: /seleccionar madrid/i,
     });
+    expect(madrid).toHaveAccessibleName(
+      /control: casa de madrid.*estado: bajo tu control.*defensa: 7\.000/i,
+    );
     await user.click(madrid);
 
     expect(screen.getByRole('heading', { name: 'Madrid' })).toBeInTheDocument();
@@ -124,11 +144,64 @@ describe('TerritoriosGame', () => {
     expect(await screen.findByText(/7.050 fuerza atacante/i)).toBeInTheDocument();
   });
 
+  it('clears stale command feedback when the player changes province or active front', async () => {
+    const observerFront = {
+      ...gameSnapshot.battles[0],
+      id: 'battle-araba-burgos',
+      campaignId: 'campaign-2',
+      originName: 'Araba/Álava',
+      targetName: 'Burgos',
+      originTerritoryCode: '01',
+      targetTerritoryCode: '09',
+      viewerSide: null,
+      canSupport: false,
+      supportDisabledReason: 'not-party',
+    };
+    const multiple = { ...gameSnapshot, battles: [gameSnapshot.battles[0], observerFront] };
+    const supportedMultiple = {
+      ...supportedSnapshot,
+      battles: [supportedSnapshot.battles[0], observerFront],
+    };
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('provinces.geojson')) return { ok: true, json: async () => provinces };
+      if (url === '/api/game/support' && init?.method === 'POST') {
+        return { ok: true, json: async () => supportedMultiple };
+      }
+      if (url === '/api/community') throw new Error('unavailable');
+      return { ok: true, json: async () => multiple };
+    }));
+
+    const user = userEvent.setup();
+    render(<TerritoriosGame />);
+    await user.click(await screen.findByRole('button', { name: /enviar 50 refuerzos/i }));
+    expect(await screen.findByText(/50 refuerzos registrados/i)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Frente activo'), 'battle-araba-burgos');
+    expect(screen.queryByText(/50 refuerzos registrados/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /seleccionar madrid/i }));
+    expect(screen.queryByText(/50 refuerzos registrados/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the reinforcement route explicit when the selected province is the battle origin', async () => {
+    const user = userEvent.setup();
+    render(<TerritoriosGame />);
+
+    await user.click(await screen.findByRole('button', { name: /seleccionar madrid/i }));
+
+    expect(screen.getByText('Madrid → Toledo', { selector: '.support-route strong' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enviar 50 refuerzos.*madrid.*toledo/i })).toBeInTheDocument();
+  });
+
   it('exposes deterministic text and time controls for browser verification', async () => {
     render(<TerritoriosGame />);
     await screen.findByRole('group', { name: /mapa de territorios/i });
 
     expect(window.render_game_to_text).toBeTypeOf('function');
+    await waitFor(() => {
+      expect(JSON.parse(window.render_game_to_text()).mode).toBe('live-world');
+    });
     expect(JSON.parse(window.render_game_to_text())).toMatchObject({
       mode: 'live-world',
       selectedTerritory: '45',
@@ -148,6 +221,7 @@ describe('TerritoriosGame', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         if (String(input).includes('provinces.geojson')) return { ok: false };
+        if (String(input) === '/api/game') return { ok: false };
         return { ok: true, json: async () => gameSnapshot };
       }),
     );
@@ -256,8 +330,14 @@ describe('TerritoriosGame', () => {
     render(<TerritoriosGame />);
     const madrid = await screen.findByRole('button', { name: /seleccionar madrid/i });
 
+    expect(madrid).toHaveAttribute('tabindex', '-1');
+
     fireEvent.keyDown(madrid, { key: ' ' });
     expect(screen.getByRole('heading', { name: 'Madrid' })).toBeInTheDocument();
+    expect(madrid).toHaveAttribute('tabindex', '0');
+
+    fireEvent.keyDown(madrid, { key: 'ArrowRight' });
+    expect(screen.getByRole('heading', { name: 'Toledo' })).toBeInTheDocument();
 
     const exitFullscreen = vi.fn(async () => undefined);
     Object.defineProperty(document, 'fullscreenElement', {
@@ -274,6 +354,127 @@ describe('TerritoriosGame', () => {
     fireEvent.keyDown(window, { key: 'f', ctrlKey: true });
     expect(exitFullscreen).toHaveBeenCalledOnce();
     Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: null });
+
+    const requestFullscreen = vi.fn(async () => undefined);
+    Object.defineProperty(document.querySelector('.game-shell'), 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Pantalla completa' }));
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+  });
+
+  it('uses server capabilities to select an eligible front and never offers support to an observer', async () => {
+    const observerFront = {
+      ...gameSnapshot.battles[0],
+      id: 'battle-observer',
+      campaignId: 'campaign-observer',
+      originName: 'Barcelona',
+      targetName: 'Valencia',
+      originTerritoryCode: '08',
+      targetTerritoryCode: '46',
+      viewerSide: null,
+      canSupport: false,
+      supportDisabledReason: 'not-party',
+    };
+    const multiple = { ...gameSnapshot, battles: [observerFront, gameSnapshot.battles[0]] };
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('provinces.geojson')) return { ok: true, json: async () => provinces };
+      if (String(input) === '/api/community') throw new Error('unavailable');
+      return { ok: true, json: async () => multiple };
+    }));
+
+    const user = userEvent.setup();
+    render(<TerritoriosGame />);
+    const selector = await screen.findByLabelText('Frente activo');
+    expect(selector).toHaveValue('battle-madrid-toledo');
+    expect(screen.getByRole('button', { name: /enviar 50 refuerzos/i })).toBeInTheDocument();
+
+    await user.selectOptions(selector, 'battle-observer');
+    expect(screen.getByText('Tu facción no participa en este frente.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enviar 50 refuerzos/i })).not.toBeInTheDocument();
+  });
+
+  it('opens working help, profile, and province sharing controls', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => undefined);
+    const share = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: share,
+    });
+    render(<TerritoriosGame initialTerritoryCode="28" />);
+
+    const helpTrigger = await screen.findByRole('button', { name: 'Mostrar ayuda del mapa' });
+    await user.click(helpTrigger);
+    expect(screen.getByRole('dialog', { name: 'Cómo usar el mapa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Cómo usar el mapa' })).not.toBeInTheDocument();
+    expect(helpTrigger).toHaveFocus();
+
+    const profileTrigger = screen.getByRole('button', { name: 'Abrir perfil' });
+    await user.click(profileTrigger);
+    expect(screen.getByRole('dialog', { name: 'Perfil de temporada' })).toHaveTextContent('Jugadora de prueba');
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(profileTrigger).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Opciones de provincia' }));
+    await user.click(screen.getByRole('button', { name: 'Pedir refuerzos' }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Madrid — Territorios',
+      url: expect.stringMatching(/\/province\/28$/),
+    }));
+    await user.click(screen.getByRole('button', { name: 'Copiar enlace' }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/province\/28$/));
+    expect(screen.getByRole('link', { name: 'Compartir por WhatsApp' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('https://wa.me/?text='),
+    );
+    expect(screen.getByRole('link', { name: 'Compartir en X' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('https://twitter.com/intent/tweet'),
+    );
+  });
+
+  it('forces a world refresh immediately after the authoritative tick time', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(gameSnapshot.serverTime);
+    const nearTick = {
+      ...gameSnapshot,
+      season: { ...gameSnapshot.season, nextTickAt: gameSnapshot.serverTime + 2_000 },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('provinces.geojson')) return { ok: true, json: async () => provinces };
+      if (url === '/api/game') return { ok: true, json: async () => nearTick };
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(<TerritoriosGame />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const initialGameRequests = fetchMock.mock.calls.filter(([url]) => String(url) === '/api/game').length;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_800);
+      });
+
+      expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/game').length)
+        .toBeGreaterThan(initialGameRequests);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('covers fallback faction colors and ignores invalid time travel', async () => {
@@ -299,7 +500,7 @@ describe('TerritoriosGame', () => {
     );
 
     render(<TerritoriosGame />);
-    const provinceOne = await screen.findByRole('button', { name: 'Seleccionar Provincia 01' });
+    const provinceOne = await screen.findByRole('button', { name: /Seleccionar Provincia 01/i });
     fireEvent.keyDown(provinceOne, { key: 'Enter' });
     expect(screen.getByText('Provincia neutral')).toBeInTheDocument();
 

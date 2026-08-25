@@ -41,6 +41,21 @@ export type SupplyEdge = {
   enabled: boolean;
 };
 
+export type TimedCouncilSeat = {
+  seatKind: string;
+  userId: string | null;
+  termStartsAt: number;
+  termEndsAt: number;
+};
+
+export function activeCouncilSeats<T extends TimedCouncilSeat>(
+  seats: T[],
+  now: number,
+): T[] {
+  if (!Number.isFinite(now)) throw new RangeError('Council time must be finite.');
+  return seats.filter((seat) => seat.termStartsAt <= now && seat.termEndsAt > now);
+}
+
 export function resolveRankedChoice(
   candidateIds: string[],
   ballots: RankedBallot[],

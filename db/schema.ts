@@ -36,6 +36,8 @@ export const seasons = sqliteTable('seasons', {
   endsAt: integer('ends_at').notNull(),
   lastResolvedTick: integer('last_resolved_tick').notNull().default(-1),
   engineVersion: text('engine_version').notNull(),
+  winnerFactionId: text('winner_faction_id'),
+  finalizedAt: integer('finalized_at'),
   createdAt: integer('created_at').notNull(),
 }, (table) => [
   uniqueIndex('seasons_number_unique').on(table.number),
@@ -131,6 +133,7 @@ export const battles = sqliteTable('battles', {
   targetTerritoryCode: text('target_territory_code').notNull().references(() => territories.code),
   attackerFactionId: text('attacker_faction_id').notNull().references(() => factions.id),
   defenderFactionId: text('defender_faction_id').notNull().references(() => factions.id),
+  campaignId: text('campaign_id').notNull().references(() => campaignRounds.id),
   status: text('status').notNull().default('active'),
   siegeBp: integer('siege_bp').notNull().default(0),
   tickCount: integer('tick_count').notNull().default(0),
@@ -138,10 +141,15 @@ export const battles = sqliteTable('battles', {
   paidAttackPower: integer('paid_attack_power').notNull().default(0),
   startedAt: integer('started_at').notNull(),
   capturedAt: integer('captured_at'),
+  endedAt: integer('ended_at'),
   engineVersion: text('engine_version').notNull(),
 }, (table) => [
   index('battles_season_status_idx').on(table.seasonId, table.status),
   index('battles_target_idx').on(table.seasonId, table.targetTerritoryCode),
+  uniqueIndex('battles_active_target_unique')
+    .on(table.seasonId, table.targetTerritoryCode)
+    .where(sql`${table.status} = 'active'`),
+  uniqueIndex('battles_campaign_unique').on(table.campaignId),
   check('battles_siege_range', sql`${table.siegeBp} >= 0 AND ${table.siegeBp} <= 10000`),
 ]);
 
@@ -217,29 +225,91 @@ export const gameEvents = sqliteTable('game_events', {
   index('game_events_aggregate_idx').on(table.aggregateType, table.aggregateId, table.sequence),
 ]);
 
-export const councilSeats = sqliteTable('council_seats', {
+export const governanceRounds = sqliteTable('governance_rounds', {
+  id: text('id').primaryKey(),
   seasonId: text('season_id').notNull().references(() => seasons.id),
   territoryCode: text('territory_code').notNull().references(() => territories.code),
+  roundKind: text('round_kind').notNull(),
+  sequence: integer('sequence').notNull(),
+  status: text('status').notNull().default('open'),
+  opensAt: integer('opens_at').notNull(),
+  closesAt: integer('closes_at').notNull(),
+  lockedAt: integer('locked_at'),
+  winnerCode: text('winner_code'),
+  createdAt: integer('created_at').notNull(),
+}, (table) => [
+  uniqueIndex('governance_round_sequence_unique').on(
+    table.seasonId,
+    table.territoryCode,
+    table.roundKind,
+    table.sequence,
+  ),
+  index('governance_round_status_idx').on(table.seasonId, table.territoryCode, table.roundKind, table.status),
+  check('governance_round_window', sql`${table.closesAt} > ${table.opensAt}`),
+]);
+
+export const councilTerms = sqliteTable('council_terms', {
+  id: text('id').primaryKey(),
+  seasonId: text('season_id').notNull().references(() => seasons.id),
+  territoryCode: text('territory_code').notNull().references(() => territories.code),
+  electionRoundId: text('election_round_id').notNull().references(() => governanceRounds.id),
+  termNumber: integer('term_number').notNull(),
+  status: text('status').notNull().default('active'),
+  startsAt: integer('starts_at').notNull(),
+  endsAt: integer('ends_at').notNull(),
+  createdAt: integer('created_at').notNull(),
+}, (table) => [
+  uniqueIndex('council_term_sequence_unique').on(table.seasonId, table.territoryCode, table.termNumber),
+  uniqueIndex('council_term_election_unique').on(table.electionRoundId),
+  index('council_term_active_idx').on(table.seasonId, table.territoryCode, table.status, table.endsAt),
+  check('council_term_window', sql`${table.endsAt} > ${table.startsAt}`),
+]);
+
+export const campaignRounds = sqliteTable('campaign_rounds', {
+  id: text('id').primaryKey(),
+  seasonId: text('season_id').notNull().references(() => seasons.id),
+  councilTerritoryCode: text('council_territory_code').notNull().references(() => territories.code),
+  originTerritoryCode: text('origin_territory_code').notNull().references(() => territories.code),
+  attackerFactionId: text('attacker_faction_id').notNull().references(() => factions.id),
+  ballotRoundId: text('ballot_round_id').notNull().references(() => governanceRounds.id),
+  cycleNumber: integer('cycle_number').notNull(),
+  phase: text('phase').notNull(),
+  targetTerritoryCode: text('target_territory_code').references(() => territories.code),
+  battleId: text('battle_id'),
+  opensAt: integer('opens_at').notNull(),
+  ballotClosesAt: integer('ballot_closes_at').notNull(),
+  mobilizesAt: integer('mobilizes_at'),
+  resolvedAt: integer('resolved_at'),
+  cooldownEndsAt: integer('cooldown_ends_at'),
+  outcome: text('outcome'),
+  createdAt: integer('created_at').notNull(),
+}, (table) => [
+  uniqueIndex('campaign_cycle_unique').on(table.seasonId, table.attackerFactionId, table.cycleNumber),
+  uniqueIndex('campaign_ballot_round_unique').on(table.ballotRoundId),
+  index('campaign_phase_idx').on(table.seasonId, table.phase, table.mobilizesAt, table.cooldownEndsAt),
+  index('campaign_council_idx').on(table.seasonId, table.councilTerritoryCode, table.cycleNumber),
+  check('campaign_ballot_window', sql`${table.ballotClosesAt} > ${table.opensAt}`),
+]);
+
+export const councilSeats = sqliteTable('council_seats', {
+  termId: text('term_id').notNull().references(() => councilTerms.id),
   seatKind: text('seat_kind').notNull(),
   userId: text('user_id').references(() => users.id),
-  termStartsAt: integer('term_starts_at').notNull(),
-  termEndsAt: integer('term_ends_at').notNull(),
 }, (table) => [
-  primaryKey({ columns: [table.seasonId, table.territoryCode, table.seatKind] }),
-  index('council_user_idx').on(table.seasonId, table.userId),
+  primaryKey({ columns: [table.termId, table.seatKind] }),
+  index('council_user_idx').on(table.termId, table.userId),
 ]);
 
 export const councilBallots = sqliteTable('council_ballots', {
   id: text('id').primaryKey(),
-  seasonId: text('season_id').notNull().references(() => seasons.id),
-  territoryCode: text('territory_code').notNull().references(() => territories.code),
+  roundId: text('round_id').notNull().references(() => governanceRounds.id),
   electionKind: text('election_kind').notNull(),
   voterUserId: text('voter_user_id').notNull().references(() => users.id),
   rankedChoicesJson: text('ranked_choices_json').notNull(),
   idempotencyKey: text('idempotency_key').notNull(),
   castAt: integer('cast_at').notNull(),
 }, (table) => [
-  uniqueIndex('council_ballot_voter_unique').on(table.seasonId, table.territoryCode, table.electionKind, table.voterUserId),
+  uniqueIndex('council_ballot_voter_unique').on(table.roundId, table.electionKind, table.voterUserId),
   uniqueIndex('council_ballot_idempotency_unique').on(table.idempotencyKey),
 ]);
 

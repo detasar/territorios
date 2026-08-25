@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { WorldSnapshot } from '../contracts/game';
 import type { PaymentSnapshot } from '../contracts/payments';
-import type { AppLocale } from '../i18n/messages';
+import { productText, type AppLocale } from '../i18n/messages';
 
 const copy = {
   es: {
@@ -28,12 +28,17 @@ const copy = {
     pause: 'Pausar nuevas compras',
     save: 'Guardar límites',
     saved: 'Controles de gasto guardados.',
+    dailyOverSeason: 'El límite diario no puede ser superior al límite de temporada.',
+    invalidLimit: 'Introduce límites de gasto válidos y no negativos.',
+    limitIncrease: 'En la beta solo puedes mantener o reducir tus límites actuales.',
     lowerOnly: 'En la beta los límites solo pueden reducirse. Una revisión de pago nunca reescribe batallas históricas.',
     history: 'Historial de compras',
     empty: 'Aún no hay compras sandbox.',
     granted: 'otorgado',
     revoked: 'revocado',
     legal: 'Privacidad y políticas',
+    purchasedUnits: 'APOYO ADQUIRIDO',
+    fairCapLabel: 'LÍMITE DE JUEGO LIMPIO 20%',
   },
   en: {
     title: 'Beta reinforcements',
@@ -56,12 +61,17 @@ const copy = {
     pause: 'Pause new purchases',
     save: 'Save limits',
     saved: 'Spending controls saved.',
+    dailyOverSeason: 'Daily limit cannot be higher than the season limit.',
+    invalidLimit: 'Enter valid, non-negative spending limits.',
+    limitIncrease: 'During beta you may only keep or reduce your current limits.',
     lowerOnly: 'Beta limits can only be reduced. A payment review never rewrites historical battles.',
     history: 'Purchase history',
     empty: 'There are no sandbox purchases yet.',
     granted: 'granted',
     revoked: 'revoked',
     legal: 'Privacy and policies',
+    purchasedUnits: 'PURCHASED SUPPORT',
+    fairCapLabel: '20% FAIR-PLAY CAP',
   },
 } as const;
 
@@ -132,7 +142,7 @@ export function PaymentPanel({
       });
       const result = await response.json() as { checkoutUrl?: string; error?: string };
       if (!response.ok || !result.checkoutUrl) {
-        throw new Error(result.error ?? labels.checkoutFailed);
+        throw new Error(locale === 'es' && result.error ? result.error : labels.checkoutFailed);
       }
       onCheckoutUrl(trustedCheckoutUrl(result.checkoutUrl));
     } catch (error) {
@@ -144,6 +154,21 @@ export function PaymentPanel({
 
   const saveControls = async () => {
     if (!snapshot) return;
+    if (!Number.isFinite(dailyLimit) || !Number.isFinite(seasonLimit) || dailyLimit < 0 || seasonLimit < 0) {
+      setMessage(labels.invalidLimit);
+      return;
+    }
+    if (dailyLimit > seasonLimit) {
+      setMessage(labels.dailyOverSeason);
+      return;
+    }
+    if (
+      dailyLimit * 100 > snapshot.controls.dailySpendLimitCents
+      || seasonLimit * 100 > snapshot.controls.seasonSpendLimitCents
+    ) {
+      setMessage(labels.limitIncrease);
+      return;
+    }
     setPending(true);
     setMessage('');
     try {
@@ -161,7 +186,7 @@ export function PaymentPanel({
       });
       const result = await response.json() as PaymentSnapshot | { error?: string };
       if (!response.ok || !('mode' in result)) {
-        throw new Error('error' in result && result.error ? result.error : labels.unavailable);
+        throw new Error('error' in result && result.error && locale === 'es' ? result.error : labels.unavailable);
       }
       setSnapshot(result);
       setMessage(labels.saved);
@@ -186,7 +211,7 @@ export function PaymentPanel({
         </div>
         <p className="payment-subtitle">{labels.subtitle}</p>
         <div className="payment-safety-note">
-          <strong>20% FAIR-PLAY CAP</strong>
+          <strong>{labels.fairCapLabel}</strong>
           <span>{labels.cap}</span>
           <span>{labels.nature}</span>
         </div>
@@ -212,7 +237,7 @@ export function PaymentPanel({
             />
             <span>
               {labels.consentPrefix}
-              <Link href="/legal/terms">{labels.consentLinks}</Link>.
+              <Link href={`/legal/terms?lang=${locale}`}>{labels.consentLinks}</Link>.
             </span>
           </label>
         </fieldset>
@@ -220,9 +245,9 @@ export function PaymentPanel({
         <ul className="product-grid">
           {catalog.map((product) => (
             <li key={product.id}>
-              <span>{product.paidSupport.toLocaleString(locale)} PAID SUPPORT</span>
-              <h4>{product.name}</h4>
-              <p>{product.description}</p>
+              <span>{product.paidSupport.toLocaleString(locale)} {labels.purchasedUnits}</span>
+              <h4>{productText(locale, product.name)}</h4>
+              <p>{productText(locale, product.description)}</p>
               <strong>{formatPrice(product.priceCents, product.currency, locale)}</strong>
               <button
                 type="button"
@@ -287,11 +312,11 @@ export function PaymentPanel({
           </ol>
         ) : <p className="empty-state">{labels.empty}</p>}
         <nav className="legal-links" aria-label={labels.legal}>
-          <Link href="/legal/terms">Terms</Link>
-          <Link href="/legal/privacy">Privacy</Link>
-          <Link href="/legal/refunds">Refunds</Link>
-          <Link href="/legal/game-rules">Game Rules</Link>
-          <Link href="/legal/community">Community</Link>
+          <Link href={`/legal/terms?lang=${locale}`}>Terms</Link>
+          <Link href={`/legal/privacy?lang=${locale}`}>Privacy</Link>
+          <Link href={`/legal/refunds?lang=${locale}`}>Refunds</Link>
+          <Link href={`/legal/game-rules?lang=${locale}`}>Game Rules</Link>
+          <Link href={`/legal/community?lang=${locale}`}>Community</Link>
         </nav>
       </section>
       {message ? <p className="hub-status" role="status" aria-live="polite">{message}</p> : null}

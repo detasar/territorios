@@ -38,13 +38,15 @@ The code uses integer units and basis points. There is no floating-point randomn
 
 - World: 52 territories from the CNIG administrative-boundary source.
 - Routes: land adjacency plus explicit maritime links for islands and autonomous cities.
-- Season engine: `combat-1.0.0`.
+- Season engine: `combat-2.0.0`.
 - Tick cadence: one logical tick per hour. Requests reconcile any elapsed ticks before returning a snapshot or accepting a command.
+- Campaign cadence: target ballot → 15-minute mobilization → active battle → one-hour cooldown → a new round whose origin follows a successful conquest.
+- Multiple disjoint fronts may be active at once; a partial unique index prevents two active battles from targeting the same territory.
 - Capture gates: 09:00, 14:00, 19:00, and 23:00 in `Europe/Madrid`.
 - Capture requirements: siege reaches 10,000 basis points, at least three battle ticks have elapsed, supply is connected, and the current tick is a capture window.
 - Replay: canonical JSON input/result, engine version, and SHA-256-addressed event data are stored with every resolved tick/event.
 
-The request-triggered reconciler is sufficient for the beta's traffic model and avoids a second scheduler. A future high-traffic release may add a single scheduled caller, but it must call the same idempotent reconciliation path rather than implement a second engine.
+The request-triggered reconciler is sufficient for the beta's traffic model and avoids a second scheduler. Visible clients poll the world every 15 seconds, refresh immediately after the authoritative tick boundary, and poll governance every 30 seconds. A future high-traffic release may add a single scheduled caller, but it must call the same idempotent reconciliation path rather than implement a second engine.
 
 ## 4. Combat and economy
 
@@ -59,7 +61,7 @@ totalPower = freePower + paidPower
 
 Therefore paid power can never exceed 20% of effective total power. Excess paid power remains queued and can become effective only when supported by sufficient free power. The same rule applies symmetrically to attackers and defenders.
 
-Siege movement is derived from each side's share of total effective power. Casualties and siege movement use integers; equal inputs and engine version always produce equal outputs.
+Siege movement is derived from each side's share of total effective power. Live ticks apply supply connectivity, route cost, concurrent-front overextension, fortification, homeland, and occupation modifiers. Casualties and siege movement use integers; equal inputs and engine version always produce equal outputs. A battle can never receive a tick whose resolution timestamp predates its scheduled mobilization.
 
 Wallet and combat mutations are atomic. `ledger_entries`, `game_events`, `battle_ticks`, and ownership history provide the accounting/replay trail. D1 triggers reject update/delete attempts on append-only records.
 
@@ -100,7 +102,7 @@ Snapshots use `Cache-Control: private, no-store`. Mutation schemas live in `src/
 
 ## 7. Community and governance
 
-Each territory has five one-person seats: two public, defense, strategy, and supporter. Ballots use equal-weight ranked choices; one user cannot occupy multiple seats. Target voting only accepts supplied adjacent routes and exposes tie/no-quorum states rather than silently choosing a winner.
+Each territory has five one-person seats: two public, defense, strategy, and supporter. Seats belong to a dated council term; expired seats are excluded from both authorization and display. Ballots belong to a governance round rather than the whole season, use equal-weight ranked choices, and allow one user to occupy at most one seat. Every campaign has its own target round. Target voting only accepts supplied adjacent routes and exposes tie/no-quorum states rather than silently choosing a winner.
 
 Roles are scout, defender, quartermaster, builder, diplomat, strategist, and herald. Each has one bounded server-authoritative action per day. Rewards, contribution credit, and cooldown receipts are recorded atomically.
 
@@ -124,12 +126,12 @@ Refund/dispute adjustments never make a wallet negative. If spent units prevent 
 
 ## 9. Persistence model
 
-The initial migration creates 26 application tables. Before any world or payment-event access, an idempotent database-guard initializer installs and verifies 18 triggers from the single `db/database-guards.json` manifest. Keeping each trigger in one prepared statement avoids multiline-trigger parsing differences in deployment migrations. Major groups are:
+The initial migration creates 29 application tables. Before any world or payment-event access, an idempotent database-guard initializer installs and verifies 19 triggers from the single `db/database-guards.json` manifest. Keeping each trigger in one prepared statement avoids multiline-trigger parsing differences in deployment migrations. Major groups are:
 
 - identity/economy: users, memberships, wallets, ledger entries;
 - world: seasons, territories, adjacencies, factions, territory state;
 - battle/replay: battles, orders, ticks, ownership history, game events;
-- governance/community: council seats/ballots, announcements/votes, reports/decisions, notifications/preferences, safety actions, role receipts;
+- governance/community: governance rounds, council terms/seats/ballots, campaign rounds, announcements/votes, reports/decisions, notifications/preferences, safety actions, role receipts;
 - commerce: catalog, purchases, payment events, entitlements, payment audit.
 
 Foreign keys are enabled. Unique indexes enforce command/provider idempotency. Monetary amounts are integer euro cents. Time values are Unix milliseconds except provider event metadata, which is normalized before storage.
@@ -145,13 +147,15 @@ Release acceptance requires all of the following:
 1. lint and TypeScript pass;
 2. unit/component/API tests pass with at least 85% statements, 80% branches, 85% functions, and 85% lines;
 3. clean production build;
-4. clean migration rehearsal with 26 tables, 18 triggers, foreign-key check, and integrity check;
-5. Playwright flows pass at desktop and 390 px without horizontal overflow;
-6. Axe reports zero automated WCAG 2.2 AA violations on game, store, and legal pages;
-7. `npm audit` reports no known dependency vulnerabilities;
-8. secret scan and anonymous deployed-site smoke checks pass.
+4. clean migration rehearsal with 29 tables, 19 triggers, foreign-key check, and integrity check;
+5. the isolated D1 campaign harness passes five council-selected conquest cycles, concurrent reconciliation, a seventh planning round, season closure, and season reset;
+6. the production-runtime smoke passes against a disposable D1 with 52 territories, eight unique fronts, public-data boundaries, province metadata, cache controls, and security headers;
+7. Playwright flows pass against a separate disposable D1 at desktop and 390 px without horizontal overflow;
+8. Axe reports zero automated WCAG 2.2 AA violations on game, store, and legal pages;
+9. `npm audit` reports no known dependency vulnerabilities;
+10. secret scan and anonymous deployed-site smoke checks pass.
 
-Automated accessibility testing cannot prove full accessibility. Manual screen-reader, zoom, language, cognitive-load, and real-device testing remains required before a broad public launch.
+Automated accessibility testing cannot prove full accessibility. The 8–15 participant [closed beta usability gate](CLOSED_BETA_TEST_PLAN.md), including manual screen-reader, zoom, language, cognitive-load, and real-device checks, remains `NOT_RUN` and is required before a broad public launch.
 
 ## 12. Deployment and recovery
 

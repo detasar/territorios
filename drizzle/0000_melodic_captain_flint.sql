@@ -64,6 +64,7 @@ CREATE TABLE `battles` (
 	`target_territory_code` text NOT NULL,
 	`attacker_faction_id` text NOT NULL,
 	`defender_faction_id` text NOT NULL,
+	`campaign_id` text NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
 	`siege_bp` integer DEFAULT 0 NOT NULL,
 	`tick_count` integer DEFAULT 0 NOT NULL,
@@ -71,17 +72,21 @@ CREATE TABLE `battles` (
 	`paid_attack_power` integer DEFAULT 0 NOT NULL,
 	`started_at` integer NOT NULL,
 	`captured_at` integer,
+	`ended_at` integer,
 	`engine_version` text NOT NULL,
 	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`origin_territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`target_territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`attacker_faction_id`) REFERENCES `factions`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`defender_faction_id`) REFERENCES `factions`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`campaign_id`) REFERENCES `campaign_rounds`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "battles_siege_range" CHECK("battles"."siege_bp" >= 0 AND "battles"."siege_bp" <= 10000)
 );
 --> statement-breakpoint
 CREATE INDEX `battles_season_status_idx` ON `battles` (`season_id`,`status`);--> statement-breakpoint
 CREATE INDEX `battles_target_idx` ON `battles` (`season_id`,`target_territory_code`);--> statement-breakpoint
+CREATE UNIQUE INDEX `battles_active_target_unique` ON `battles` (`season_id`,`target_territory_code`) WHERE `status` = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX `battles_campaign_unique` ON `battles` (`campaign_id`);--> statement-breakpoint
 CREATE TABLE `catalog_products` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -94,36 +99,99 @@ CREATE TABLE `catalog_products` (
 	CONSTRAINT "catalog_price_positive" CHECK("catalog_products"."price_cents" > 0)
 );
 --> statement-breakpoint
-CREATE TABLE `council_ballots` (
+CREATE TABLE `governance_rounds` (
 	`id` text PRIMARY KEY NOT NULL,
 	`season_id` text NOT NULL,
 	`territory_code` text NOT NULL,
+	`round_kind` text NOT NULL,
+	`sequence` integer NOT NULL,
+	`status` text DEFAULT 'open' NOT NULL,
+	`opens_at` integer NOT NULL,
+	`closes_at` integer NOT NULL,
+	`locked_at` integer,
+	`winner_code` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "governance_round_window" CHECK("governance_rounds"."closes_at" > "governance_rounds"."opens_at")
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `governance_round_sequence_unique` ON `governance_rounds` (`season_id`,`territory_code`,`round_kind`,`sequence`);--> statement-breakpoint
+CREATE INDEX `governance_round_status_idx` ON `governance_rounds` (`season_id`,`territory_code`,`round_kind`,`status`);--> statement-breakpoint
+CREATE TABLE `council_terms` (
+	`id` text PRIMARY KEY NOT NULL,
+	`season_id` text NOT NULL,
+	`territory_code` text NOT NULL,
+	`election_round_id` text NOT NULL,
+	`term_number` integer NOT NULL,
+	`status` text DEFAULT 'active' NOT NULL,
+	`starts_at` integer NOT NULL,
+	`ends_at` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`election_round_id`) REFERENCES `governance_rounds`(`id`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "council_term_window" CHECK("council_terms"."ends_at" > "council_terms"."starts_at")
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `council_term_sequence_unique` ON `council_terms` (`season_id`,`territory_code`,`term_number`);--> statement-breakpoint
+CREATE UNIQUE INDEX `council_term_election_unique` ON `council_terms` (`election_round_id`);--> statement-breakpoint
+CREATE INDEX `council_term_active_idx` ON `council_terms` (`season_id`,`territory_code`,`status`,`ends_at`);--> statement-breakpoint
+CREATE TABLE `campaign_rounds` (
+	`id` text PRIMARY KEY NOT NULL,
+	`season_id` text NOT NULL,
+	`council_territory_code` text NOT NULL,
+	`origin_territory_code` text NOT NULL,
+	`attacker_faction_id` text NOT NULL,
+	`ballot_round_id` text NOT NULL,
+	`cycle_number` integer NOT NULL,
+	`phase` text NOT NULL,
+	`target_territory_code` text,
+	`battle_id` text,
+	`opens_at` integer NOT NULL,
+	`ballot_closes_at` integer NOT NULL,
+	`mobilizes_at` integer,
+	`resolved_at` integer,
+	`cooldown_ends_at` integer,
+	`outcome` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`council_territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`origin_territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`attacker_faction_id`) REFERENCES `factions`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`ballot_round_id`) REFERENCES `governance_rounds`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`target_territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "campaign_ballot_window" CHECK("campaign_rounds"."ballot_closes_at" > "campaign_rounds"."opens_at")
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `campaign_cycle_unique` ON `campaign_rounds` (`season_id`,`attacker_faction_id`,`cycle_number`);--> statement-breakpoint
+CREATE UNIQUE INDEX `campaign_ballot_round_unique` ON `campaign_rounds` (`ballot_round_id`);--> statement-breakpoint
+CREATE INDEX `campaign_phase_idx` ON `campaign_rounds` (`season_id`,`phase`,`mobilizes_at`,`cooldown_ends_at`);--> statement-breakpoint
+CREATE INDEX `campaign_council_idx` ON `campaign_rounds` (`season_id`,`council_territory_code`,`cycle_number`);--> statement-breakpoint
+CREATE TABLE `council_ballots` (
+	`id` text PRIMARY KEY NOT NULL,
+	`round_id` text NOT NULL,
 	`election_kind` text NOT NULL,
 	`voter_user_id` text NOT NULL,
 	`ranked_choices_json` text NOT NULL,
 	`idempotency_key` text NOT NULL,
 	`cast_at` integer NOT NULL,
-	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`round_id`) REFERENCES `governance_rounds`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`voter_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `council_ballot_voter_unique` ON `council_ballots` (`season_id`,`territory_code`,`election_kind`,`voter_user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `council_ballot_voter_unique` ON `council_ballots` (`round_id`,`election_kind`,`voter_user_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `council_ballot_idempotency_unique` ON `council_ballots` (`idempotency_key`);--> statement-breakpoint
 CREATE TABLE `council_seats` (
-	`season_id` text NOT NULL,
-	`territory_code` text NOT NULL,
+	`term_id` text NOT NULL,
 	`seat_kind` text NOT NULL,
 	`user_id` text,
-	`term_starts_at` integer NOT NULL,
-	`term_ends_at` integer NOT NULL,
-	PRIMARY KEY(`season_id`, `territory_code`, `seat_kind`),
-	FOREIGN KEY (`season_id`) REFERENCES `seasons`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`territory_code`) REFERENCES `territories`(`code`) ON UPDATE no action ON DELETE no action,
+	PRIMARY KEY(`term_id`, `seat_kind`),
+	FOREIGN KEY (`term_id`) REFERENCES `council_terms`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `council_user_idx` ON `council_seats` (`season_id`,`user_id`);--> statement-breakpoint
+CREATE INDEX `council_user_idx` ON `council_seats` (`term_id`,`user_id`);--> statement-breakpoint
 CREATE TABLE `entitlements` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
@@ -331,6 +399,8 @@ CREATE TABLE `seasons` (
 	`ends_at` integer NOT NULL,
 	`last_resolved_tick` integer DEFAULT -1 NOT NULL,
 	`engine_version` text NOT NULL,
+	`winner_faction_id` text,
+	`finalized_at` integer,
 	`created_at` integer NOT NULL,
 	CONSTRAINT "seasons_valid_window" CHECK("seasons"."ends_at" > "seasons"."starts_at")
 );

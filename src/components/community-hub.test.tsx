@@ -9,6 +9,24 @@ const community: CommunitySnapshot = {
   serverTime: Date.UTC(2026, 7, 25, 12),
   territory: { code: '28', name: 'Madrid', factionName: 'Casa de Madrid' },
   council: {
+    term: {
+      id: 'council-term-season-1-28-1',
+      number: 1,
+      startsAt: Date.UTC(2026, 7, 25),
+      endsAt: Date.UTC(2026, 8, 1),
+    },
+    campaign: {
+      id: 'campaign-season-1-28-1',
+      cycleNumber: 1,
+      phase: 'planning',
+      originTerritoryCode: '28',
+      targetTerritoryCode: null,
+      targetTerritoryName: null,
+      battleId: null,
+      ballotClosesAt: Date.UTC(2026, 7, 25, 18),
+      mobilizesAt: null,
+      cooldownEndsAt: null,
+    },
     seats: [
       { seatKind: 'public-1', memberRef: 'abcdef0123456789', label: 'Estratega 6789', role: 'strategist', termEndsAt: Date.UTC(2026, 8, 1) },
       { seatKind: 'public-2', memberRef: null, label: null, role: null, termEndsAt: null },
@@ -22,6 +40,7 @@ const community: CommunitySnapshot = {
     validTargets: [{ code: '45', name: 'Toledo', routeKind: 'land' }],
     representativeBallotCast: false,
     targetBallotCast: false,
+    canVoteTarget: true,
     targetResult: { status: 'winner', winner: '45', finalists: ['45'] },
   },
   announcements: [
@@ -68,12 +87,12 @@ const world = {
     { player: 'Estratega 6789', role: 'strategist', contributionScore: 100, factionName: 'Casa de Madrid' },
   ],
   recentEvents: [
-    { sequence: 8, eventType: 'COUNCIL_VOTE_CAST', aggregateId: '28', payload: {}, payloadHash: 'a'.repeat(64), createdAt: Date.UTC(2026, 7, 25, 11) },
+    { sequence: 8, eventType: 'COUNCIL_VOTE_CAST', summaryKey: 'councilVoteCast', summaryArgs: {}, payloadHash: 'a'.repeat(64), createdAt: Date.UTC(2026, 7, 25, 11) },
   ],
   viewer: {
     preferences: { locale: 'es', quietHoursStart: 22, quietHoursEnd: 8, maxWarAlertsPerDay: 1, councilAlerts: true },
   },
-} as WorldSnapshot;
+} as unknown as WorldSnapshot;
 
 describe('CommunityHub', () => {
   beforeEach(() => {
@@ -102,9 +121,13 @@ describe('CommunityHub', () => {
     );
 
     await user.click(screen.getByRole('tab', { name: 'Consejo' }));
+    expect(screen.getByText(/\+25 refuerzos gratuitos/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Ejecutar acción diaria' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Acción diaria de rol completada.');
     await user.click(screen.getByRole('button', { name: 'Emitir voto igualitario' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Voto registrado');
     await user.click(screen.getByRole('button', { name: 'Votar objetivo' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Voto registrado');
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -123,6 +146,34 @@ describe('CommunityHub', () => {
     );
   });
 
+  it('does not offer a target ballot after the campaign target is locked', async () => {
+    const user = userEvent.setup();
+    const lockedCommunity: CommunitySnapshot = {
+      ...community,
+      council: {
+        ...community.council,
+        campaign: {
+          ...community.council.campaign!,
+          phase: 'active',
+          targetTerritoryCode: '45',
+          targetTerritoryName: 'Toledo',
+          battleId: 'battle-season-1-28-45',
+        },
+        targetBallotCast: false,
+        canVoteTarget: false,
+      },
+    };
+    render(
+      <CommunityHub community={lockedCommunity} communityError={false} locale="es" onCommunity={vi.fn()} onLocale={vi.fn()} world={world} />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Consejo' }));
+
+    expect(screen.queryByLabelText('Objetivo con suministro')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Votar objetivo' })).not.toBeInTheDocument();
+    expect(screen.getByText('Objetivo elegido: Toledo')).toBeInTheDocument();
+  });
+
   it('publishes fixed messages and exposes vote, report, mute, and block controls', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.mocked(fetch);
@@ -132,16 +183,40 @@ describe('CommunityHub', () => {
     await user.click(screen.getByRole('tab', { name: 'Consejo' }));
 
     await user.click(screen.getByRole('button', { name: 'Publicar mensaje predefinido' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Anuncio publicado.');
     await user.click(screen.getByRole('button', { name: /útil 2/i }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Valoración del anuncio registrada.');
     await user.click(screen.getByText('Denunciar'));
     await user.click(screen.getByRole('button', { name: 'Enviar a revisión humana' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Denuncia enviada a revisión humana.');
     await user.click(screen.getByRole('button', { name: 'Silenciar autor' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Autor silenciado.');
     await user.click(screen.getByRole('button', { name: 'Bloquear autor' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Autor bloqueado.');
 
     expect(fetchMock).toHaveBeenCalledWith('/api/community/announcement', expect.any(Object));
     expect(fetchMock).toHaveBeenCalledWith('/api/community/announcement/vote', expect.any(Object));
     expect(fetchMock).toHaveBeenCalledWith('/api/community/report', expect.any(Object));
     expect(fetchMock).toHaveBeenCalledWith('/api/community/safety', expect.any(Object));
+  });
+
+  it('keeps the moderation drawer open after reporting and recreating the council panel', async () => {
+    const user = userEvent.setup();
+    render(
+      <CommunityHub community={community} communityError={false} locale="es" onCommunity={vi.fn()} onLocale={vi.fn()} world={world} />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Consejo' }));
+
+    await user.click(screen.getByText('Denunciar'));
+    await user.click(screen.getByRole('button', { name: 'Enviar a revisión humana' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Denuncia enviada a revisión humana.');
+
+    await user.click(screen.getByRole('tab', { name: 'Clasificación' }));
+    await user.click(screen.getByRole('tab', { name: 'Consejo' }));
+
+    expect(screen.getByText('Denunciar').closest('details')).toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Silenciar autor' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Bloquear autor' })).toBeVisible();
   });
 
   it('switches replay/settings accessibly and saves bounded preferences', async () => {
@@ -152,7 +227,9 @@ describe('CommunityHub', () => {
     );
 
     fireEvent(window, new CustomEvent('territorios:tab', { detail: 'activity' }));
-    expect(await screen.findByText('COUNCIL VOTE CAST')).toBeInTheDocument();
+    expect(await screen.findByText('Se registró un voto igualitario del consejo.')).toBeInTheDocument();
+    expect(screen.getByText(/Cada entrada cuenta qué cambió/i)).toBeInTheDocument();
+    expect(screen.getByText('Verificar integridad')).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Ajustes' }));
     await user.selectOptions(screen.getByLabelText('Idioma de la interfaz'), 'en');
@@ -165,7 +242,22 @@ describe('CommunityHub', () => {
       '/api/community/preferences',
       expect.objectContaining({ body: expect.stringContaining('"maxWarAlertsPerDay":0') }),
     );
-    expect(screen.getByText('council announcement')).toBeInTheDocument();
+    expect(screen.getByText('Anuncio del consejo')).toBeInTheDocument();
+  });
+
+  it('clears action feedback when the interface locale changes', async () => {
+    const user = userEvent.setup();
+    const view = render(
+      <CommunityHub community={community} communityError={false} locale="es" onCommunity={vi.fn()} onLocale={vi.fn()} world={world} />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Consejo' }));
+    await user.click(screen.getByRole('button', { name: 'Ejecutar acción diaria' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Acción diaria de rol completada.');
+
+    view.rerender(
+      <CommunityHub community={community} communityError={false} locale="en" onCommunity={vi.fn()} onLocale={vi.fn()} world={world} />,
+    );
+    expect(screen.queryByText('Acción diaria de rol completada.')).not.toBeInTheDocument();
   });
 
   it('shows explicit empty and unavailable states without inventing data', async () => {

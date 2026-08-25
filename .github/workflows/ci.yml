@@ -29,9 +29,9 @@ jobs:
       - run: npm ci
       - run: npm audit
       - run: npm run verify:migration
+      - run: npm run verify:campaign
       - run: npm run verify
-      - name: Initialize local D1
-        run: npx wrangler d1 migrations apply site-creator-d1 --local
+      - run: npm run verify:runtime
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

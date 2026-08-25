@@ -26,10 +26,10 @@ purchase_columns="$(sqlite3 "$database" "SELECT COUNT(*) FROM pragma_table_info(
 integrity="$(sqlite3 "$database" 'PRAGMA integrity_check;')"
 foreign_key_violations="$(sqlite3 "$database" 'PRAGMA foreign_key_check;' | wc -l | tr -d ' ')"
 
-[[ "$tables" == '26' ]]
-[[ "$triggers" == '18' ]]
-[[ "$purchase_columns" == '21' ]]
-[[ "$integrity" == 'ok' ]]
-[[ "$foreign_key_violations" == '0' ]]
+[[ "$tables" == '29' ]] || { echo "Expected 29 tables, found $tables." >&2; exit 1; }
+[[ "$triggers" == '19' ]] || { echo "Expected 19 triggers, found $triggers." >&2; exit 1; }
+[[ "$purchase_columns" == '21' ]] || { echo "Expected 21 purchase columns, found $purchase_columns." >&2; exit 1; }
+[[ "$integrity" == 'ok' ]] || { echo "SQLite integrity check failed: $integrity" >&2; exit 1; }
+[[ "$foreign_key_violations" == '0' ]] || { echo "Foreign-key violations: $foreign_key_violations" >&2; exit 1; }
 
 echo "D1_MIGRATION_PASS tables=$tables triggers=$triggers purchase_columns=$purchase_columns integrity=$integrity"

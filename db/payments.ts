@@ -18,7 +18,7 @@ import {
 import { ensureDatabaseGuards } from './database-guards';
 import { getRawD1 } from './index';
 import { upsertUser } from './game';
-import { ACTIVE_SEASON_ID, ensureWorld } from './world-bootstrap';
+import { activeSeasonRecord, ensureWorld } from './world-bootstrap';
 
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1_000;
 const SPEND_STATUSES = "'pending','fulfilled','partially_refunded','disputed','dispute_lost'";
@@ -148,6 +148,7 @@ export async function createPaymentCheckout(
   const checkoutOrigin = validatedOrigin(origin);
   const stripe = getStripeClient();
   await ensureWorld(now);
+  const seasonId = (await activeSeasonRecord()).id;
   await upsertUser(user, now);
   const d1 = getRawD1();
 
@@ -174,7 +175,7 @@ export async function createPaymentCheckout(
     d1.prepare(
       `SELECT home_territory_code FROM faction_memberships
        WHERE season_id = ?1 AND user_id = ?2`,
-    ).bind(ACTIVE_SEASON_ID, user.userId).first<{ home_territory_code: string }>(),
+    ).bind(seasonId, user.userId).first<{ home_territory_code: string }>(),
     d1.prepare(
       `SELECT COALESCE(SUM(amount_cents - refunded_cents), 0) AS cents
        FROM purchases WHERE user_id = ?1 AND created_at >= ?2 AND status IN (${SPEND_STATUSES})`,
@@ -182,7 +183,7 @@ export async function createPaymentCheckout(
     d1.prepare(
       `SELECT COALESCE(SUM(amount_cents - refunded_cents), 0) AS cents
        FROM purchases WHERE user_id = ?1 AND season_id = ?2 AND status IN (${SPEND_STATUSES})`,
-    ).bind(user.userId, ACTIVE_SEASON_ID).first<{ cents: number }>(),
+    ).bind(user.userId, seasonId).first<{ cents: number }>(),
   ]);
 
   if (!product) throw new PaymentCommandError('El paquete no está disponible.', 404);
@@ -216,7 +217,7 @@ export async function createPaymentCheckout(
       ).bind(
         purchaseId,
         user.userId,
-        ACTIVE_SEASON_ID,
+        seasonId,
         membership.home_territory_code,
         product.id,
         product.price_cents,

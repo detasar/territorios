@@ -86,6 +86,24 @@ export type CommunitySnapshot = {
     factionName: string;
   };
   council: {
+    term: null | {
+      id: string;
+      number: number;
+      startsAt: number;
+      endsAt: number;
+    };
+    campaign: null | {
+      id: string;
+      cycleNumber: number;
+      phase: 'planning' | 'mobilizing' | 'active' | 'cooldown' | 'resolved';
+      originTerritoryCode: string;
+      targetTerritoryCode: string | null;
+      targetTerritoryName: string | null;
+      battleId: string | null;
+      ballotClosesAt: number;
+      mobilizesAt: number | null;
+      cooldownEndsAt: number | null;
+    };
     seats: Array<{
       seatKind: 'public-1' | 'public-2' | 'defense' | 'strategy' | 'supporter';
       memberRef: string | null;
@@ -106,6 +124,7 @@ export type CommunitySnapshot = {
     }>;
     representativeBallotCast: boolean;
     targetBallotCast: boolean;
+    canVoteTarget: boolean;
     targetResult: {
       status: 'winner' | 'tie' | 'no-quorum';
       winner: string | null;
@@ -147,6 +166,7 @@ export type CommunitySnapshot = {
 export type WorldSnapshot = {
   mode: 'live-world';
   serverTime: number;
+  lastUpdatedAt: number;
   season: {
     id: string;
     number: number;
@@ -157,6 +177,15 @@ export type WorldSnapshot = {
     endsAt: number;
     lastResolvedTick: number;
     engineVersion: string;
+    nextTickAt: number;
+  };
+  previousSeason: null | {
+    id: string;
+    number: number;
+    name: string;
+    winnerFactionId: string;
+    winnerFactionName: string;
+    finalizedAt: number;
   };
   territories: Array<{
     code: string;
@@ -169,10 +198,12 @@ export type WorldSnapshot = {
     freeGarrison: number;
     paidGarrison: number;
     supply: number;
+    fortificationBp: number;
     occupiedAt: number | null;
   }>;
   battles: Array<{
     id: string;
+    campaignId: string;
     originTerritoryCode: string;
     targetTerritoryCode: string;
     originName: string;
@@ -183,7 +214,34 @@ export type WorldSnapshot = {
     tickCount: number;
     freeAttackPower: number;
     paidAttackPower: number;
+    startedAt: number;
     engineVersion: string;
+    routeKind: string;
+    routeCostBp: number;
+    viewerSide: 'attacker' | 'defender' | null;
+    canSupport: boolean;
+    supportDisabledReason:
+      | 'sign-in-required'
+      | 'join-faction'
+      | 'not-party'
+      | null;
+    combatContext: {
+      supplyConnected: boolean;
+      attacker: {
+        supplyBp: number;
+        distanceBp: number;
+        overextensionBp: number;
+        fortificationBp: number;
+        homelandBp: number;
+      };
+      defender: {
+        supplyBp: number;
+        distanceBp: number;
+        overextensionBp: number;
+        fortificationBp: number;
+        homelandBp: number;
+      };
+    };
   }>;
   factionLeaderboard: Array<{
     factionId: string;
@@ -201,8 +259,8 @@ export type WorldSnapshot = {
   recentEvents: Array<{
     sequence: number;
     eventType: string;
-    aggregateId: string;
-    payload: unknown;
+    summaryKey: string;
+    summaryArgs: Record<string, string | number>;
     payloadHash: string;
     createdAt: number;
   }>;
@@ -235,5 +293,10 @@ export type WorldSnapshot = {
       maxWarAlertsPerDay: number;
       councilAlerts: boolean;
     };
+  };
+  onboarding: {
+    nextAction: 'sign-in' | 'join-faction' | 'support-front' | 'wait-for-front' | 'complete';
+    eligibleBattleCount: number;
+    hasSupportedThisSeason: boolean;
   };
 };

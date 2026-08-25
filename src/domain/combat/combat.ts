@@ -24,6 +24,9 @@ export type BattleTickInput = {
 };
 
 export type EffectiveCombatSide = {
+  freeUnits: bigint;
+  effectivePaidUnits: bigint;
+  queuedPaidUnits: bigint;
   freePower: bigint;
   paidPower: bigint;
   queuedPaidPower: bigint;
@@ -39,6 +42,14 @@ export type BattleTickResult = {
   siegeBp: number;
   attackerLosses: bigint;
   defenderLosses: bigint;
+};
+
+export type CombatLossAllocation = {
+  freeUnits: bigint;
+  paidUnits: bigint;
+  freeLosses: bigint;
+  paidLosses: bigint;
+  queuedPaidUnits: bigint;
 };
 
 export function resolveBattleTick(input: BattleTickInput): BattleTickResult {
@@ -76,29 +87,78 @@ export function resolveBattleTick(input: BattleTickInput): BattleTickResult {
     attackerLosses:
       totalPower === 0n
         ? 0n
-        : (attacker.totalPower * attackerLossRateBp) / BASIS_POINTS,
+        : ((attacker.freeUnits + attacker.effectivePaidUnits) * attackerLossRateBp) /
+          BASIS_POINTS,
     defenderLosses:
       totalPower === 0n
         ? 0n
-        : (defender.totalPower * defenderLossRateBp) / BASIS_POINTS,
+        : ((defender.freeUnits + defender.effectivePaidUnits) * defenderLossRateBp) /
+          BASIS_POINTS,
   };
 }
 
 function effectiveSide(side: CombatSideInput): EffectiveCombatSide {
+  const effectivePaidUnits = min(side.paidUnits, side.freeUnits / PAID_TO_FREE_CAP_DIVISOR);
+  const queuedPaidUnits = side.paidUnits - effectivePaidUnits;
   const freePower = applyModifiers(side.freeUnits, side.modifiers);
-  const rawPaidPower = applyModifiers(side.paidUnits, side.modifiers);
-  const paidPower = min(rawPaidPower, freePower / PAID_TO_FREE_CAP_DIVISOR);
+  const paidPower = min(
+    applyModifiers(effectivePaidUnits, side.modifiers),
+    freePower / PAID_TO_FREE_CAP_DIVISOR,
+  );
+  const queuedPaidPower = applyModifiers(side.paidUnits, side.modifiers) - paidPower;
   const totalPower = freePower + paidPower;
 
   return {
+    freeUnits: side.freeUnits,
+    effectivePaidUnits,
+    queuedPaidUnits,
     freePower,
     paidPower,
-    queuedPaidPower: rawPaidPower - paidPower,
+    queuedPaidPower,
     totalPower,
     paidShareBp:
       totalPower === 0n
         ? 0
         : Number((paidPower * BASIS_POINTS) / totalPower),
+  };
+}
+
+export function allocateCombatLosses(input: {
+  freeUnits: bigint;
+  paidUnits: bigint;
+  effectivePaidUnits: bigint;
+  losses: bigint;
+}): CombatLossAllocation {
+  const { freeUnits, paidUnits, effectivePaidUnits, losses } = input;
+  if (
+    freeUnits < 0n ||
+    paidUnits < 0n ||
+    effectivePaidUnits < 0n ||
+    effectivePaidUnits > paidUnits ||
+    losses < 0n
+  ) {
+    throw new RangeError('Combat loss inputs must describe non-negative participating units.');
+  }
+  const activeUnits = freeUnits + effectivePaidUnits;
+  const queuedPaidUnits = paidUnits - effectivePaidUnits;
+  if (activeUnits === 0n || losses === 0n) {
+    return {
+      freeUnits,
+      paidUnits,
+      freeLosses: 0n,
+      paidLosses: 0n,
+      queuedPaidUnits,
+    };
+  }
+  const boundedLosses = min(losses, activeUnits);
+  const freeLosses = (boundedLosses * freeUnits) / activeUnits;
+  const paidLosses = boundedLosses - freeLosses;
+  return {
+    freeUnits: freeUnits - freeLosses,
+    paidUnits: paidUnits - paidLosses,
+    freeLosses,
+    paidLosses,
+    queuedPaidUnits,
   };
 }
 
