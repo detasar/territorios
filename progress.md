@@ -52,10 +52,11 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Added a one-command local bootstrap that applies pending migrations only to the selected local D1 before `npm run dev`, plus an isolated empty-D1 regression and CI gate. Documented the clone-to-live flow and added visually verified 1440 px campaign/council and 390 px mobile gameplay screenshots. A fresh `npm ci`, 152/152 tests with coverage thresholds, lint, typecheck, production build, 29-table/19-trigger migration integrity, five-cycle campaign rehearsal, runtime smoke, fresh-D1 bootstrap, 4/4 Playwright/Axe flows, and zero-vulnerability audit all passed; GitHub and hosted-site visibility remain unchanged.
 - 2026-08-25: The first GitHub release run exposed ESLint traversing Wrangler's generated `.wrangler/tmp` campaign bundle on Linux. Restricted lint to authored sources by excluding the already-ignored `.wrangler` runtime directory. A CI-class generated fixture proved the old failure and the corrected scope, then the complete GitHub-ordered release chain passed locally before the correction commit.
 - 2026-08-25: The second GitHub release run passed audit, migration, campaign, verify, runtime, and the new bootstrap gate, then exposed the bootstrap test leaving its nested Vinext child alive on Linux. Cleanup now terminates the spawned process tree before reporting success so the following isolated Playwright server can start cleanly.
+- 2026-08-25: Began the `v0.2.0-beta.1` closed-beta finalization from the merged goal pack. Fresh databases now start the season on actual day 1; the historical day-12 state is available only through an explicit bounded fixture helper. A new empty-D1 gate proved eight simultaneous first requests converge on one complete season with 52 territories and eight fronts. Passed 154/154 tests, typecheck, lint, and the isolated bootstrap rehearsal.
 
 ## Current task
 
-- Campaign-loop, QA-report remediation, accessibility/usability hardening, and all local release gates are complete. Keep the existing owner-only deployment and production D1 unchanged until a backed-up rollout and deployed-site verification are explicitly approved.
+- Finalize `v0.2.0-beta.1` as a no-real-money, owner-only closed-beta candidate. Keep the existing hosted D1 unchanged until backup, rollback, same-SHA deployment, and smoke evidence are complete; real 8–15-person/7-day evidence remains a mandatory external gate.
 
 ## Planned MVPs
 

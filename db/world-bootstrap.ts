@@ -34,8 +34,16 @@ export async function ensureWorld(now = Date.now()): Promise<void> {
     .prepare('SELECT number, ends_at FROM seasons ORDER BY number DESC LIMIT 1')
     .first<{ number: number; ends_at: number }>();
   const number = (latest?.number ?? 0) + 1;
-  const startsAt = latest ? Math.max(now, latest.ends_at) : now - 11 * DAY_MILLISECONDS;
+  const startsAt = latest ? Math.max(now, latest.ends_at) : freshSeasonStartAt(now);
   await createSeason(number, startsAt, now);
+}
+
+export function freshSeasonStartAt(now: number, fixtureSeasonDay?: number): number {
+  if (fixtureSeasonDay === undefined) return now;
+  if (!Number.isInteger(fixtureSeasonDay) || fixtureSeasonDay < 1 || fixtureSeasonDay > 28) {
+    throw new Error('Fixture season day must be an integer from 1 through 28.');
+  }
+  return now - (fixtureSeasonDay - 1) * DAY_MILLISECONDS;
 }
 
 export async function activeSeasonRecord(): Promise<ActiveSeasonRecord> {
@@ -140,7 +148,7 @@ async function createSeason(number: number, startsAt: number, createdAt: number)
       directedEdges.map((edge) => [edge.from, edge.to, edge.routeKind, edge.costBp]),
     ),
     d1.prepare(
-      `INSERT INTO seasons
+      `INSERT OR IGNORE INTO seasons
        (id, number, name, phase, status, starts_at, ends_at, last_resolved_tick, engine_version,
         winner_faction_id, finalized_at, created_at)
        VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?6, ?7, ?8, NULL, NULL, ?9)`,
@@ -297,7 +305,7 @@ async function createSeason(number: number, startsAt: number, createdAt: number)
       ],
     ),
     d1.prepare(
-      `INSERT INTO game_events
+      `INSERT OR IGNORE INTO game_events
        (id, season_id, event_type, actor_user_id, aggregate_type, aggregate_id,
         payload_json, payload_hash, engine_version, created_at)
        VALUES (?1, ?2, 'WORLD_BOOTSTRAPPED', NULL, 'season', ?2, ?3, ?4, ?5, ?6)`,

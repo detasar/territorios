@@ -47,9 +47,9 @@ ready=false
 last_status="000"
 for _ in {1..240}; do
   last_status="$(curl --silent \
-    --output "$game_body" \
+    --output /dev/null \
     --write-out '%{http_code}' \
-    "$base_url/api/game" || true)"
+    "$base_url/" || true)"
   if [[ "$last_status" == "200" ]]; then
     ready=true
     break
@@ -69,6 +69,38 @@ if [[ "$ready" != true ]]; then
   echo "Local bootstrap did not produce a healthy game API (HTTP $last_status)." >&2
   exit 1
 fi
+
+node - "$base_url" <<'NODE'
+const baseUrl = process.argv[2];
+
+(async () => {
+  const responses = await Promise.all(
+    Array.from({ length: 8 }, () => fetch(`${baseUrl}/api/game`)),
+  );
+  if (responses.some((response) => !response.ok)) {
+    throw new Error(`Concurrent bootstrap returned HTTP ${responses.map((response) => response.status).join(',')}`);
+  }
+  const worlds = await Promise.all(responses.map((response) => response.json()));
+  const seasonIds = new Set(worlds.map((world) => world.season?.id));
+  if (seasonIds.size !== 1) {
+    throw new Error(`Expected one season, received ${seasonIds.size}`);
+  }
+  for (const world of worlds) {
+    const age = world.serverTime - world.season.startsAt;
+    if (age < 0 || age > 30_000) {
+      throw new Error(`Fresh season did not start on day 1 (age=${age}).`);
+    }
+    if (world.territories?.length !== 52 || world.battles?.length !== 8) {
+      throw new Error('Concurrent bootstrap did not return the complete opening world.');
+    }
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+NODE
+
+curl --fail --silent --output "$game_body" "$base_url/api/game"
 
 node - "$game_body" <<'NODE'
 const fs = require('node:fs');
