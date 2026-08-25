@@ -8,8 +8,9 @@ import {
   type AnnouncementKey,
 } from '../domain/community/moderation';
 import { interpolate, type AppLocale, type PlayerRole, roleLabels, uiCopy } from '../i18n/messages';
+import { PaymentPanel } from './payment-panel';
 
-type CommunityTab = 'leaderboard' | 'council' | 'activity' | 'settings';
+type CommunityTab = 'leaderboard' | 'council' | 'activity' | 'store' | 'settings';
 
 const seatCopy = {
   'public-1': 'publicRepresentative',
@@ -73,7 +74,7 @@ export function CommunityHub({
   useEffect(() => {
     const openTab = (event: Event) => {
       const requested = (event as CustomEvent<string>).detail;
-      if (requested === 'leaderboard' || requested === 'council' || requested === 'activity' || requested === 'settings') {
+      if (requested === 'leaderboard' || requested === 'council' || requested === 'activity' || requested === 'store' || requested === 'settings') {
         setActiveTab(requested);
         document.getElementById('community-hub')?.scrollIntoView({ behavior: 'smooth' });
       }
@@ -152,6 +153,7 @@ export function CommunityHub({
     { id: 'leaderboard', label: copy.leaderboard },
     { id: 'council', label: copy.council },
     { id: 'activity', label: copy.activity },
+    { id: 'store', label: locale === 'es' ? 'Tienda sandbox' : 'Sandbox store' },
     { id: 'settings', label: copy.settings },
   ];
   const moveTabFocus = (current: CommunityTab, key: string) => {
@@ -426,6 +428,14 @@ export function CommunityHub({
               </ol>
             ) : <p className="empty-state">{copy.noEvents}</p>}
           </section>
+        ) : null}
+
+        {activeTab === 'store' ? (
+          <PaymentPanel
+            catalog={world?.catalog ?? []}
+            hasMembership={Boolean(world?.viewer?.membership)}
+            locale={locale}
+          />
         ) : null}
 
         {activeTab === 'settings' ? (

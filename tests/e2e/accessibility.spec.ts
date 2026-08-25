@@ -32,3 +32,27 @@ test('supports keyboard tab navigation and 390px reflow', async ({ page }) => {
   );
   expect(hasHorizontalOverflow).toBe(false);
 });
+
+test('exposes a transparent sandbox store and accessible legal surface', async ({ page }) => {
+  await openAuthenticatedGame(page);
+  const store = page.getByRole('tab', { name: 'Tienda sandbox' });
+  await store.scrollIntoViewIfNeeded();
+  await store.click();
+
+  await expect(page.getByText('Stripe Sandbox', { exact: true })).toBeVisible();
+  await expect(page.getByText('20% FAIR-PLAY CAP')).toBeVisible();
+  await expect(page.getByText(/no se puede transferir ni canjear por dinero/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Abrir pago sandbox' }).first()).toBeDisabled();
+
+  const storeAxe = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(storeAxe.violations).toEqual([]);
+
+  await page.goto('/legal/terms');
+  await expect(page.getByRole('heading', { name: /Condiciones de la beta/i })).toBeVisible();
+  const legalAxe = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(legalAxe.violations).toEqual([]);
+});
