@@ -126,7 +126,7 @@ Refund/dispute adjustments never make a wallet negative. If spent units prevent 
 
 ## 9. Persistence model
 
-The initial migration creates 29 application tables. Before any world or payment-event access, an idempotent database-guard initializer installs and verifies 19 triggers from the single `db/database-guards.json` manifest. Keeping each trigger in one prepared statement avoids multiline-trigger parsing differences in deployment migrations. Major groups are:
+The initial migration creates 29 application tables. Migration `0001_single_active_season.sql` removes only a provably untouched, future-dated bootstrap duplicate and then adds a partial unique index that permits at most one active season. If a duplicate has durable activity, the migration preserves it and fails closed instead of deleting player state. Before any world or payment-event access, an idempotent database-guard initializer installs and verifies 19 triggers from the single `db/database-guards.json` manifest. Keeping each trigger in one prepared statement avoids multiline-trigger parsing differences in deployment migrations. Major groups are:
 
 - identity/economy: users, memberships, wallets, ledger entries;
 - world: seasons, territories, adjacencies, factions, territory state;
@@ -134,7 +134,7 @@ The initial migration creates 29 application tables. Before any world or payment
 - governance/community: governance rounds, council terms/seats/ballots, campaign rounds, announcements/votes, reports/decisions, notifications/preferences, safety actions, role receipts;
 - commerce: catalog, purchases, payment events, entitlements, payment audit.
 
-Foreign keys are enabled. Unique indexes enforce command/provider idempotency. Monetary amounts are integer euro cents. Time values are Unix milliseconds except provider event metadata, which is normalized before storage.
+Foreign keys are enabled. Unique indexes enforce command/provider idempotency and the single-active-season invariant. Monetary amounts are integer euro cents. Time values are Unix milliseconds except provider event metadata, which is normalized before storage.
 
 ## 10. Security headers and browser boundary
 
@@ -170,7 +170,7 @@ Before a schema-changing release:
 5. smoke-test anonymous world read, authenticated join/support, community, and payment configuration;
 6. retain the previous artifact and database backup for rollback.
 
-The `0.1.0` schema is an initial migration and has not been applied to a public production database. Per project policy, obsolete schemas are replaced before first release instead of carrying compatibility migrations.
+The previous owner-only database is retained unchanged as the physical rollback point. The closed-beta database uses the explicit `0001` invariant upgrade; its cleanup predicate is rehearsed both for safe duplicate removal and fail-closed preservation of durable activity.
 
 ## 13. Claim ceiling and known launch work
 

@@ -62,6 +62,7 @@ Original prompt: bu tasarıma göre mükemmel ve eksiksiz bir şekilde herşeyi 
 - 2026-08-25: Closed the release coverage regression with consent/request/metric guard, anonymous, vocabulary, bounded-command, and storage-failure tests; 186 tests now pass at 89.12% statements, 80.71% branches, 90.10% functions, and 91.90% lines.
 - 2026-08-25: Exported the unchanged previous owner-only D1 as a private 0600 logical backup (26 tables, 415 rows, SHA-256 recorded outside the repository), retained Sites version 3 and its D1 as the physical rollback point, and created a separate owner-only closed-beta Sites project with no external visitors or groups.
 - 2026-08-25: Added reproducible isolated-D1 release screenshots for 1440/768/390, attacker and defender support receipts, council, replay, privacy, map-help focus, 200% zoom, and grayscale semantics; visually inspected every capture and preserved the prior set for before/after comparison.
+- 2026-08-25: Owner-only staging smoke exposed a real first-request race: two interleaved bootstrap requests could create consecutive active seasons even though the local concurrency smoke returned one world. Added a database-enforced single-active-season invariant, a fail-closed `0001` cleanup limited to untouched future bootstrap duplicates, an idempotent partial-bootstrap recovery path, and migration rehearsals proving both safe cleanup and durable-activity preservation. Local migration and eight-request fresh-D1 bootstrap gates pass; staging redeploy verification remains required before tagging.
 
 ## Current task
 

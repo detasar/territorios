@@ -32,6 +32,7 @@ Bu paket, eski `v0.1.0` etiketini release kaynağı olarak kabul etmez. Final be
 | [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) | D1, deploy, smoke, paylaşım ve rollback adımları |
 | [GO_NO_GO_CHECKLIST.md](GO_NO_GO_CHECKLIST.md) | Final karar ve imza tablosu |
 | [PARTICIPANT_GUIDE.md](PARTICIPANT_GUIDE.md) | Katılımcının ilk üç dakikası, harita, campaign ve destek yolu |
+| [RELEASE_NOTES_v0.2.0-beta.1.md](RELEASE_NOTES_v0.2.0-beta.1.md) | GitHub ön sürüm notu, yerel kurulum ve kanıt özeti |
 | [COHORT_ALLOCATION.md](COHORT_ALLOCATION.md) | PII içermeyen P01–P15 odak-province dağılımı |
 | [OPERATIONS_AND_MODERATION.md](OPERATIONS_AND_MODERATION.md) | SLA, privacy, moderation, incident ve rollback sorumlulukları |
 | [METRICS_DICTIONARY.md](METRICS_DICTIONARY.md) | İçeriksiz aggregate beta metrik sözlüğü |

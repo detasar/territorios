@@ -16,6 +16,10 @@ This repository contains the `v0.2.0-beta.1` no-real-money closed-beta candidate
 
 The candidate is owner-only until its real 8–15-adult human gate is run. It accepts no real-money payment and must not be described as property, investment, gambling, a prize, or political authority.
 
+## Hosted candidate
+
+The current deployment is available at [territorios-closed-beta.vecna.chatgpt.site](https://territorios-closed-beta.vecna.chatgpt.site). It intentionally requires the project owner's ChatGPT sign-in while the human and owner-signature gates remain open. This access restriction applies only to the hosted candidate: anyone can clone this public repository and start an independent local world with the commands below.
+
 ## Screenshots
 
 ### Before: repeated ownership colors and the older command surface
@@ -59,6 +63,8 @@ The corresponding sign-in URL is then `http://localhost:3020/signin-with-chatgpt
 
 The local server is a complete isolated game world. Do not add Stripe variables for this release: its store and every payment endpoint are deliberately unavailable.
 
+For a clean restart, stop the server and remove only the generated `.wrangler/` directory inside your clone. Never point the local commands at a remote D1 binding.
+
 ## Verification
 
 ```bash
@@ -97,3 +103,7 @@ The pack treats real payment, public access, and live Stripe as out of scope. It
 ## Release boundary
 
 The local quick start above runs a complete isolated gameplay world; it does not publish a site or change hosted data. The hosted candidate remains owner-only and uses a separate clean beta D1, while the previous site/D1 is retained as the rollback point. This server-authenticated D1 application is not a static GitHub Pages build. Territorios is not a live-commerce launch, financial product, gambling product, prize system, or transferable virtual-property system. Support units cannot be bought, traded, cashed out, or transferred between players in this release. Public or participant access remains `NO-GO` until the documented human and owner-signature gates pass.
+
+## License and map attribution
+
+The application code is released under the [MIT License](LICENSE). Province geometry is a transformed derivative of IGN/CNIG BDLJE data and retains its recorded CC BY 4.0-compatible attribution in [`data/provenance/provinces.json`](data/provenance/provinces.json).
