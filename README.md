@@ -75,10 +75,22 @@ npm audit
 
 `npm run verify` runs lint, type checking, coverage thresholds, and the production build. The migration rehearsal creates a disposable SQLite database and checks 29 application tables, 19 triggers, foreign keys, and integrity. The campaign rehearsal uses a separate disposable D1 instance to prove five council-selected conquests, concurrent reconciliation safety, the next planning round, Crown selection, and season reset. The runtime smoke starts the production build against another disposable D1 and checks 52 territories, eight unique fronts, `combat-2.0.0`, public-data boundaries, province metadata, cache controls, and security headers. The bootstrap smoke starts `npm run dev` against an empty disposable D1 and proves that migrations run automatically before a 52-territory world becomes healthy. The Playwright suite likewise creates and removes its own isolated D1; none of these checks opens the project-local `.wrangler` database.
 
+## Final closed-beta release pack
+
+The runnable product, visual, QA, human-testing, deployment, and GO/NO-GO plan for the next release candidate is indexed at:
+
+- [Final closed-beta goal pack](docs/closed-beta-final/README.md)
+- [Authoritative master goal](docs/closed-beta-final/MASTER_GOAL.md)
+- [Exact 4,000-character Turkish execution goal](docs/closed-beta-final/GOAL_4000_TR.md)
+- [Playability and visual audit](docs/closed-beta-final/PLAYABILITY_AND_VISUAL_AUDIT.md)
+
+The pack treats real payment, public access, and live Stripe as out of scope. It requires a backed-up D1 rollout, corrected day-one season start, truthful map-ownership semantics, same-SHA release evidence, and an 8–15-person human gate before broader access.
+
 ## Documentation
 
 - [Technical specification](docs/TECHNICAL_SPEC.md)
 - [Closed beta usability gate](docs/CLOSED_BETA_TEST_PLAN.md)
+- [Final closed-beta release pack](docs/closed-beta-final/README.md)
 - [Security policy and threat boundaries](SECURITY.md)
 - [Implementation ledger](progress.md)
 - [Source-data provenance](data/provenance/provinces.json)
