@@ -6,7 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
+    "dev": "bash scripts/run-local-dev.sh",
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
@@ -20,6 +20,7 @@
     "verify:migration": "bash scripts/verify-d1-migration.sh",
     "verify:campaign": "bash scripts/verify-campaign-cycle.sh",
     "verify:runtime": "bash scripts/verify-runtime-smoke.sh",
+    "verify:bootstrap": "bash scripts/verify-local-bootstrap.sh",
     "verify:webhook": "node scripts/verify-payment-webhook.mjs",
     "data:provinces": "node scripts/fetch-provinces.mjs"
   },

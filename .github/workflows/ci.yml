@@ -32,6 +32,7 @@ jobs:
       - run: npm run verify:campaign
       - run: npm run verify
       - run: npm run verify:runtime
+      - run: npm run verify:bootstrap
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
